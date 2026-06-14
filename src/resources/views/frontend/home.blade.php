@@ -1,164 +1,248 @@
 @extends('layouts.frontend')
 
-@section('title', 'YoLearning - Belajar Bahasa Interaktif')
+@section('title', $homepageSettings->meta_title ?? 'YoLearning - Belajar Bahasa Interaktif')
 
 @section('content')
-    <section class="section hero-section" id="home">
-        <div class="container hero-grid">
-            <div>
-                <span class="eyebrow">
-                    <span class="pulse-dot"></span>
-                    Belajar bahasa berbasis quiz & progress
-                </span>
+    @php
+        $hero = $sections->get('hero');
+        $languagesSection = $sections->get('languages');
+        $tournament = $sections->get('tournament');
+        $cta = $sections->get('cta');
 
-                <h1 class="hero-title">
-                    Welcome to <span class="text-gradient">YoLearning</span> Students
-                </h1>
+        $renderTitle = fn (?string $title, string $fallback = '') => str_replace('YoLearning', '<span class="text-gradient">YoLearning</span>', e($title ?: $fallback));
+        $storageUrl = fn (?string $path) => $path ? asset('storage/' . $path) : null;
+    @endphp
 
-                <p class="hero-copy">
-                    Pilih bahasa yang kamu inginkan, masuk ke mode belajar, kerjakan quiz, lalu lihat skor dan pembahasanmu. Desain ini mengikuti wireframe awal, tetapi dibuat dengan nuansa biru gelap, neon lembut, dan atmosfer seperti kunang-kunang di kegelapan.
-                </p>
+    @if ($hero)
+        <section class="section hero-section section-reveal" id="home">
+            <div class="container hero-grid">
+                <div>
+                    @if ($hero->kicker)
+                        <span class="eyebrow">
+                            <span class="pulse-dot"></span>
+                            {{ $hero->kicker }}
+                        </span>
+                    @endif
 
-                <div class="hero-actions">
-                    <a href="#languages" class="button button-primary">Mulai Belajar</a>
-                    <a href="#tournament" class="button button-ghost">Lihat Tournament</a>
-                </div>
-            </div>
+                    <h1 class="hero-title">
+                        {!! $renderTitle($hero->title, 'Welcome to YoLearning Students') !!}
+                    </h1>
 
-            <div class="hero-card" aria-label="Preview dashboard YoLearning">
-                <div class="hero-card-content">
-                    <div class="study-window">
-                        <div class="window-bar">
-                            <span class="window-dot"></span>
-                            <span class="window-dot"></span>
-                            <span class="window-dot"></span>
+                    @if ($hero->description)
+                        <p class="hero-copy">
+                            {{ $hero->description }}
+                        </p>
+                    @endif
+
+                    @if ($hero->primary_button_label || $hero->secondary_button_label)
+                        <div class="hero-actions">
+                            @if ($hero->primary_button_label && $hero->primary_button_url)
+                                <a href="{{ $hero->primary_button_url }}" class="button button-primary">{{ $hero->primary_button_label }}</a>
+                            @endif
+
+                            @if ($hero->secondary_button_label && $hero->secondary_button_url)
+                                <a href="{{ $hero->secondary_button_url }}" class="button button-soft">{{ $hero->secondary_button_label }}</a>
+                            @endif
                         </div>
+                    @endif
+                </div>
 
-                        <div class="window-body">
-                            <div class="lesson-preview">
-                                <div class="lesson-row">
-                                    <div>
-                                        <strong>Mandarin Basic</strong><br>
-                                        <span>Listening Practice</span>
-                                    </div>
-                                    <div class="lesson-score">92%</div>
+                <div class="hero-card" aria-label="Preview dashboard YoLearning">
+                    @if ($storageUrl($hero->image_path))
+                        <img src="{{ $storageUrl($hero->image_path) }}" alt="{{ $hero->name }}" class="hero-custom-image">
+                    @else
+                        <div class="hero-card-content">
+                            <div class="study-window">
+                                <div class="window-bar">
+                                    <span class="window-dot"></span>
+                                    <span class="window-dot"></span>
+                                    <span class="window-dot"></span>
                                 </div>
 
-                                <div class="lesson-row">
-                                    <div>
-                                        <strong>Korea Daily Talk</strong><br>
-                                        <span>Conversation Quiz</span>
-                                    </div>
-                                    <div class="lesson-score">86%</div>
-                                </div>
+                                <div class="window-body">
+                                    <div class="lesson-preview">
+                                        <div class="lesson-row">
+                                            <div>
+                                                <strong>Mandarin Basic</strong><br>
+                                                <span>Listening Practice</span>
+                                            </div>
+                                            <div class="lesson-score">92%</div>
+                                        </div>
 
-                                <div class="lesson-row">
-                                    <div>
-                                        <strong>Grammar Mix</strong><br>
-                                        <span>10 soal interaktif</span>
+                                        <div class="lesson-row">
+                                            <div>
+                                                <strong>Korea Daily Talk</strong><br>
+                                                <span>Conversation Quiz</span>
+                                            </div>
+                                            <div class="lesson-score">86%</div>
+                                        </div>
+
+                                        <div class="lesson-row">
+                                            <div>
+                                                <strong>Grammar Mix</strong><br>
+                                                <span>10 soal interaktif</span>
+                                            </div>
+                                            <div class="lesson-score">+50 XP</div>
+                                        </div>
                                     </div>
-                                    <div class="lesson-score">+50 XP</div>
                                 </div>
                             </div>
+
+                            <div class="floating-badge">
+                                <p>Live Progress</p>
+                                <p>Skor, XP, dan pembahasan dibuat siap untuk disambungkan ke database Laravel.</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="floating-badge">
-                        <p>Live Progress</p>
-                        <p>Skor, XP, dan pembahasan dibuat siap untuk disambungkan ke database Laravel.</p>
-                    </div>
+                    @endif
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
+    @endif
 
-    <section class="section split-section" id="languages">
-        <div class="container split-grid">
-            <div>
-                <p class="section-kicker">Pilih Bahasa</p>
-                <h2 class="section-title">Pelajari bahasa yang kamu inginkan</h2>
-                <p class="section-copy">
-                    Kartu bahasa di bawah masih menggunakan data dummy dari controller. Nanti saat CMS dibuat, bagian ini tinggal membaca data dari tabel <strong>languages</strong> tanpa mengubah desain halaman.
-                </p>
-                <div class="hero-actions">
-                    <a href="#start" class="button button-primary">Daftar Sekarang</a>
+    @if ($languagesSection)
+        <section class="section split-section section-reveal" id="languages">
+            <div class="container split-grid">
+                <div class="language-copy">
+                    @if ($languagesSection->kicker)
+                        <p class="section-kicker">{{ $languagesSection->kicker }}</p>
+                    @endif
+
+                    <h2 class="section-title">{{ $languagesSection->title }}</h2>
+
+                    @if ($languagesSection->description)
+                        <p class="section-copy">
+                            {{ $languagesSection->description }}
+                        </p>
+                    @endif
                 </div>
-            </div>
 
-            <div class="language-cloud" aria-label="Daftar bahasa">
-                @foreach ($languages as $language)
-                    <a href="#" class="language-card">
-                        <div class="language-accent">{{ $language['accent'] }}</div>
-                        <div class="language-name">{{ $language['name'] }}</div>
-                        <p class="language-desc">{{ $language['description'] }}</p>
-                        <span class="language-status">{{ $language['status'] }}</span>
-                    </a>
-                @endforeach
-            </div>
-        </div>
-    </section>
+                <div class="language-cloud" aria-label="Daftar bahasa">
+                    @forelse ($languagesSection->items as $language)
+                        <a href="{{ $language->url ?: '#' }}" class="language-card">
+                            @if ($storageUrl($language->image_path))
+                                <img src="{{ $storageUrl($language->image_path) }}" alt="{{ $language->title }}" class="language-card-image">
+                            @endif
 
-    <section class="section tournament-section" id="tournament">
-        <div class="container tournament-grid">
-            <div class="arena-card" aria-label="Gambar turnamen">
-                <div class="arena-ring"></div>
-                <div class="arena-trophy">
-                    <div>
-                        <div class="trophy-icon">🏆</div>
-                        <p class="trophy-label">Gambar Tournament</p>
-                    </div>
-                </div>
-            </div>
+                            @if ($language->accent_text)
+                                <div class="language-accent">{{ $language->accent_text }}</div>
+                            @endif
 
-            <div>
-                <p class="section-kicker">Challenge Mode</p>
-                <h2 class="section-title">Bertandinglah dengan user lain dan jadilah nomor satu</h2>
-                <p class="section-copy">
-                    Section ini disiapkan untuk fitur battle mode seperti Kahoot. Untuk tahap awal, tampilannya sudah siap; logic real-time bisa dibuat setelah quiz solo stabil.
-                </p>
+                            <div class="language-name">{{ $language->title }}</div>
 
-                <div class="feature-list">
-                    <div class="feature-item">
-                        <span class="feature-icon">1</span>
-                        <div>
-                            <strong>Room Challenge</strong>
-                            <p>User dapat masuk ke room, menjawab soal, dan mengumpulkan skor.</p>
+                            @if ($language->description)
+                                <p class="language-desc">{{ $language->description }}</p>
+                            @endif
+
+                            @if ($language->badge_text)
+                                <span class="language-status">{{ $language->badge_text }}</span>
+                            @endif
+                        </a>
+                    @empty
+                        <div class="language-card" style="position: relative; inset: auto; transform: none; opacity: 1;">
+                            <div class="language-name">Belum ada bahasa</div>
+                            <p class="language-desc">Tambahkan item bahasa dari Admin Panel → HOMEPAGE → Sections → Section 2.</p>
                         </div>
-                    </div>
+                    @endforelse
+                </div>
+            </div>
+        </section>
+    @endif
 
-                    <div class="feature-item">
-                        <span class="feature-icon">2</span>
-                        <div>
-                            <strong>Leaderboard</strong>
-                            <p>Ranking ditampilkan berdasarkan jawaban benar, skor, dan kecepatan.</p>
-                        </div>
-                    </div>
+    @if ($tournament)
+        <section class="section tournament-section section-reveal" id="tournament">
+            <div class="container tournament-grid">
+                <div class="arena-card" aria-label="Gambar turnamen">
+                    @if ($storageUrl($tournament->image_path))
+                        <img src="{{ $storageUrl($tournament->image_path) }}" alt="{{ $tournament->name }}" class="section-image">
+                    @else
+                        <div class="tournament-visual">
+                            <div class="podium-card">
+                                <div class="podium-top">
+                                    <span>Battle Room</span>
+                                    <span class="podium-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M8 21h8M12 17v4M7 4h10v3.5a5 5 0 0 1-10 0V4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <path d="M7 6H4.8a1.8 1.8 0 0 0 0 3.6H7M17 6h2.2a1.8 1.8 0 0 1 0 3.6H17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                        </svg>
+                                    </span>
+                                </div>
 
-                    <div class="feature-item">
-                        <span class="feature-icon">3</span>
-                        <div>
-                            <strong>Review Jawaban</strong>
-                            <p>Setelah bermain, user tetap bisa belajar dari pembahasan soal.</p>
+                                <div class="podium-bars" aria-hidden="true">
+                                    <div class="podium-bar" style="--h: 4.9rem;">2</div>
+                                    <div class="podium-bar" style="--h: 7.4rem;">1</div>
+                                    <div class="podium-bar" style="--h: 3.8rem;">3</div>
+                                </div>
+
+                                <p class="podium-caption">Tournament Preview</p>
+                            </div>
                         </div>
+                    @endif
+                </div>
+
+                <div>
+                    @if ($tournament->kicker)
+                        <p class="section-kicker">{{ $tournament->kicker }}</p>
+                    @endif
+
+                    <h2 class="section-title">{{ $tournament->title }}</h2>
+
+                    @if ($tournament->description)
+                        <p class="section-copy">
+                            {{ $tournament->description }}
+                        </p>
+                    @endif
+
+                    <div class="feature-list">
+                        @foreach ($tournament->items as $feature)
+                            <div class="feature-item">
+                                <span class="feature-icon">{{ $feature->label ?: $loop->iteration }}</span>
+                                <div>
+                                    <strong>{{ $feature->title }}</strong>
+                                    @if ($feature->description)
+                                        <p>{{ $feature->description }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
+    @endif
 
-    <section class="section cta-section" id="start">
-        <div class="container">
-            <div class="cta-card">
-                <p class="section-kicker">Mulai Sekarang</p>
-                <h2 class="section-title">Mulai perjalananmu dengan kami. Daftar sekarang.</h2>
-                <p class="section-copy" style="margin-left: auto; margin-right: auto;">
-                    Halaman ini sudah dibuat sebagai landing page awal. Setelah ini kita bisa lanjut satu per satu ke page Language Detail, Mode Detail, Lesson Detail, Quiz, Result, dan Review.
-                </p>
-                <div class="hero-actions" style="justify-content: center;">
-                    <a href="#languages" class="button button-primary">Pilih Bahasa</a>
-                    <a href="/admin" class="button button-ghost">Masuk Admin</a>
+    @if ($cta)
+        <section class="section cta-section section-reveal" id="start">
+            <div class="container">
+                <div class="cta-card">
+                    @if ($storageUrl($cta->image_path))
+                        <img src="{{ $storageUrl($cta->image_path) }}" alt="{{ $cta->name }}" class="cta-background-image" aria-hidden="true">
+                    @endif
+
+                    @if ($cta->kicker)
+                        <p class="section-kicker">{{ $cta->kicker }}</p>
+                    @endif
+
+                    <h2 class="section-title">{{ $cta->title }}</h2>
+
+                    @if ($cta->description)
+                        <p class="section-copy" style="margin-left: auto; margin-right: auto;">
+                            {{ $cta->description }}
+                        </p>
+                    @endif
+
+                    @if ($cta->primary_button_label || $cta->secondary_button_label)
+                        <div class="hero-actions" style="justify-content: center;">
+                            @if ($cta->primary_button_label && $cta->primary_button_url)
+                                <a href="{{ $cta->primary_button_url }}" class="button button-primary">{{ $cta->primary_button_label }}</a>
+                            @endif
+
+                            @if ($cta->secondary_button_label && $cta->secondary_button_url)
+                                <a href="{{ $cta->secondary_button_url }}" class="button button-ghost">{{ $cta->secondary_button_label }}</a>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
+    @endif
 @endsection
