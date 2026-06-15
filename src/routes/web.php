@@ -5,6 +5,7 @@ use Livewire\Livewire;
 use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\Frontend\HomeController;
 use App\Http\Controllers\Frontend\AuthController;
+use App\Http\Controllers\Frontend\LearningDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -40,3 +41,12 @@ Route::get('/logout', function (Request $request) {
 
     return redirect()->route('home');
 })->name('logout.get');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/welcome', [LearningDashboardController::class, 'welcome'])->name('learning.welcome');
+    Route::get('/onboarding', [LearningDashboardController::class, 'onboarding'])->name('learning.onboarding');
+    Route::post('/onboarding', [LearningDashboardController::class, 'storeOnboarding'])->name('learning.onboarding.store');
+    Route::get('/dashboard', [LearningDashboardController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard/parts/{part}', [LearningDashboardController::class, 'showPart'])->name('learning.parts.show');
+    Route::get('/dashboard/parts/{part}/levels/{level}', [LearningDashboardController::class, 'showLevel'])->name('learning.levels.show');
+});

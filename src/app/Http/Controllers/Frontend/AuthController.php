@@ -54,7 +54,7 @@ class AuthController extends Controller
         $setting = $this->authSetting('login');
 
         return redirect()
-            ->intended(route('home'))
+            ->route('learning.welcome')
             ->with('auth_success', $setting->success_message ?? 'Berhasil masuk.');
     }
 
@@ -106,7 +106,7 @@ class AuthController extends Controller
         $setting = $this->authSetting('register');
 
         return redirect()
-            ->route('home')
+            ->route('learning.welcome')
             ->with('auth_success', $setting->success_message ?? 'Akun berhasil dibuat.');
     }
 

@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             HomepageSeeder::class,
             AuthPageSeeder::class,
+            DashboardSeeder::class,
+            LearningCmsSeeder::class,
         ]);
     }
 }

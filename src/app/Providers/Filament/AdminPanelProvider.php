@@ -57,6 +57,12 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('AUTH PAGES'),
                 NavigationGroup::make()
+                    ->label('USER DASHBOARD'),
+                NavigationGroup::make()
+                    ->label('LEARNING CMS'),
+                NavigationGroup::make()
+                    ->label('USER MANAGEMENT'),
+                NavigationGroup::make()
                     ->label('Administration'),
             ])
             ->userMenuItems([
