@@ -13,6 +13,12 @@
         $storageUrl = fn (?string $path) => $path ? asset('storage/' . $path) : null;
     @endphp
 
+    @if (session('auth_success'))
+        <div class="container" style="padding-top: 1rem;">
+            <div class="auth-alert">{{ session('auth_success') }}</div>
+        </div>
+    @endif
+
     @if ($hero)
         <section class="section hero-section section-reveal" id="home">
             <div class="container hero-grid">

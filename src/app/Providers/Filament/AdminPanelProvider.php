@@ -55,6 +55,8 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('HOMEPAGE'),
                 NavigationGroup::make()
+                    ->label('AUTH PAGES'),
+                NavigationGroup::make()
                     ->label('Administration'),
             ])
             ->userMenuItems([

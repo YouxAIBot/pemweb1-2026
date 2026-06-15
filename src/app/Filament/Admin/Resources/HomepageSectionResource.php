@@ -229,6 +229,28 @@ class HomepageSectionResource extends Resource
         return parent::getEloquentQuery()->withCount('items')->orderBy('sort_order');
     }
 
+
+
+    public static function canCreate(): bool
+    {
+        return true;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return true;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return true;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return true;
+    }
+
     public static function getPages(): array
     {
         return [

@@ -62,7 +62,8 @@ class AppServiceProvider extends ServiceProvider
                     (object) ['label' => 'Home', 'url' => '#home', 'style' => 'link'],
                     (object) ['label' => 'Bahasa', 'url' => '#languages', 'style' => 'link'],
                     (object) ['label' => 'Tournament', 'url' => '#tournament', 'style' => 'link'],
-                    (object) ['label' => 'Login', 'url' => '/admin', 'style' => 'primary'],
+                    (object) ['label' => 'Daftar', 'url' => '/register', 'style' => 'soft'],
+                    (object) ['label' => 'Login', 'url' => '/login', 'style' => 'primary'],
                 ]),
             ];
 

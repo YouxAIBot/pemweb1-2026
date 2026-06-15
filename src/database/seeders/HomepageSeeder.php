@@ -12,7 +12,7 @@ class HomepageSeeder extends Seeder
 {
     public function run(): void
     {
-        HomepageSetting::firstOrCreate([
+        HomepageSetting::updateOrCreate([
             'id' => 1,
         ], [
             'site_name' => 'YoLearning',
@@ -30,14 +30,13 @@ class HomepageSeeder extends Seeder
             ['label' => 'Home', 'url' => '#home', 'style' => 'link', 'sort_order' => 1],
             ['label' => 'Bahasa', 'url' => '#languages', 'style' => 'link', 'sort_order' => 2],
             ['label' => 'Tournament', 'url' => '#tournament', 'style' => 'link', 'sort_order' => 3],
-            ['label' => 'Daftar', 'url' => '#start', 'style' => 'soft', 'sort_order' => 4],
-            ['label' => 'Login', 'url' => '/admin', 'style' => 'primary', 'sort_order' => 5],
+            ['label' => 'Daftar', 'url' => '/register', 'style' => 'soft', 'sort_order' => 4],
+            ['label' => 'Login', 'url' => '/login', 'style' => 'primary', 'sort_order' => 5],
         ];
 
         foreach ($navItems as $item) {
-            HomepageNavItem::firstOrCreate([
+            HomepageNavItem::updateOrCreate([
                 'label' => $item['label'],
-                'url' => $item['url'],
             ], $item + ['is_active' => true]);
         }
 
@@ -47,10 +46,10 @@ class HomepageSeeder extends Seeder
                 'kicker' => 'Belajar bahasa berbasis quiz & progress',
                 'title' => 'Welcome to YoLearning Students',
                 'description' => 'Pilih bahasa yang kamu inginkan, masuk ke mode belajar, kerjakan quiz, lalu lihat skor dan pembahasanmu. Nuansa halaman dibuat lebih clean, gelap, modern, dan tetap punya efek cahaya kecil seperti kunang-kunang.',
-                'primary_button_label' => 'Mulai Belajar',
-                'primary_button_url' => '#languages',
-                'secondary_button_label' => 'Login',
-                'secondary_button_url' => '/admin',
+                'primary_button_label' => 'Daftar Sekarang',
+                'primary_button_url' => '/register',
+                'secondary_button_label' => 'Masuk Akun',
+                'secondary_button_url' => '/login',
                 'sort_order' => 1,
             ],
             'languages' => [
@@ -72,17 +71,17 @@ class HomepageSeeder extends Seeder
                 'kicker' => 'Mulai Sekarang',
                 'title' => 'Mulai perjalananmu dengan kami. Daftar sekarang.',
                 'description' => 'Halaman ini sudah dibuat sebagai landing page awal. Setelah ini kita bisa lanjut satu per satu ke page Language Detail, Mode Detail, Lesson Detail, Quiz, Result, dan Review.',
-                'primary_button_label' => 'Pilih Bahasa',
-                'primary_button_url' => '#languages',
-                'secondary_button_label' => 'Masuk Admin',
-                'secondary_button_url' => '/admin',
+                'primary_button_label' => 'Daftar Sekarang',
+                'primary_button_url' => '/register',
+                'secondary_button_label' => 'Masuk Akun',
+                'secondary_button_url' => '/login',
                 'sort_order' => 4,
             ],
         ];
 
         $sectionModels = [];
         foreach ($sections as $key => $section) {
-            $sectionModels[$key] = HomepageSection::firstOrCreate([
+            $sectionModels[$key] = HomepageSection::updateOrCreate([
                 'section_key' => $key,
             ], $section + ['is_active' => true]);
         }

@@ -846,6 +846,453 @@
             position: relative;
         }
 
+
+
+        .auth-section {
+            min-height: calc(100vh - 9rem);
+            display: grid;
+            align-items: center;
+            padding: clamp(3.25rem, 7vw, 6.25rem) 0;
+        }
+
+        .auth-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 0.92fr) minmax(20rem, 0.78fr);
+            gap: clamp(1.4rem, 4vw, 3rem);
+            align-items: stretch;
+        }
+
+        .auth-card,
+        .auth-info-card {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(210, 230, 255, 0.12);
+            border-radius: 2rem;
+            background:
+                linear-gradient(145deg, rgba(255, 255, 255, 0.078), rgba(255, 255, 255, 0.038)),
+                radial-gradient(circle at 18% 0%, rgba(119, 232, 247, 0.1), transparent 16rem);
+            box-shadow: 0 34px 90px rgba(0, 0, 0, 0.32), inset 0 1px rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(18px);
+        }
+
+        .auth-card {
+            padding: clamp(1.35rem, 4vw, 2.35rem);
+        }
+
+        .auth-card::before,
+        .auth-info-card::before {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            border-radius: 999px;
+            background: rgba(119, 232, 247, 0.12);
+            filter: blur(48px);
+        }
+
+        .auth-card::before {
+            width: 12rem;
+            height: 12rem;
+            right: -5rem;
+            top: -5rem;
+        }
+
+        .auth-info-card::before {
+            width: 15rem;
+            height: 15rem;
+            left: -7rem;
+            bottom: -7rem;
+        }
+
+        .auth-card > *,
+        .auth-info-card > * {
+            position: relative;
+        }
+
+        .auth-header {
+            margin-bottom: 1.65rem;
+        }
+
+        .auth-title {
+            margin-top: 0.75rem;
+            font-size: clamp(2rem, 5vw, 3.35rem);
+            line-height: 1;
+            letter-spacing: -0.06em;
+            font-weight: 900;
+        }
+
+        .auth-description {
+            margin-top: 0.92rem;
+            max-width: 38rem;
+            color: rgba(203, 213, 225, 0.78);
+            line-height: 1.75;
+            font-weight: 560;
+        }
+
+        .auth-form {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .auth-field {
+            display: grid;
+            gap: 0.48rem;
+        }
+
+        .auth-label {
+            color: rgba(237, 244, 255, 0.86);
+            font-size: 0.86rem;
+            font-weight: 900;
+            letter-spacing: -0.015em;
+        }
+
+        .auth-input-group {
+            display: grid;
+            gap: 0.55rem;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+        }
+
+        .captcha-chip {
+            min-width: 5.2rem;
+            height: 3.25rem;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid rgba(119, 232, 247, 0.16);
+            border-radius: 1rem;
+            background: rgba(119, 232, 247, 0.075);
+            color: #e9fbff;
+            font-weight: 900;
+            letter-spacing: -0.025em;
+        }
+
+        .auth-input {
+            width: 100%;
+            min-height: 3.25rem;
+            border: 1px solid rgba(210, 230, 255, 0.12);
+            border-radius: 1rem;
+            padding: 0.9rem 1rem;
+            color: var(--ink);
+            background: rgba(2, 8, 23, 0.42);
+            outline: none;
+            font: inherit;
+            font-weight: 760;
+            transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+        }
+
+        .auth-input::placeholder {
+            color: rgba(203, 213, 225, 0.42);
+        }
+
+        .auth-input:focus {
+            border-color: rgba(119, 232, 247, 0.36);
+            background: rgba(2, 8, 23, 0.58);
+            box-shadow: 0 0 0 4px rgba(119, 232, 247, 0.08);
+        }
+
+        .auth-error {
+            color: #fecdd3;
+            font-size: 0.82rem;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+
+        .auth-alert {
+            margin-bottom: 1rem;
+            border: 1px solid rgba(119, 232, 247, 0.18);
+            border-radius: 1rem;
+            padding: 0.95rem 1rem;
+            color: #e8fbff;
+            background: rgba(119, 232, 247, 0.075);
+            font-weight: 780;
+            line-height: 1.55;
+        }
+
+        .auth-alert-danger {
+            border-color: rgba(251, 113, 133, 0.22);
+            color: #ffe4e6;
+            background: rgba(251, 113, 133, 0.08);
+        }
+
+        .auth-actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.9rem;
+            margin-top: 0.3rem;
+            color: rgba(203, 213, 225, 0.74);
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+
+        .auth-link {
+            color: #dffbff;
+            font-weight: 900;
+            text-decoration: none;
+            transition: color 180ms ease, opacity 180ms ease;
+        }
+
+        .auth-link:hover {
+            color: #ffffff;
+        }
+
+        .auth-submit {
+            width: 100%;
+            margin-top: 0.35rem;
+        }
+
+        .auth-info-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 100%;
+            padding: clamp(1.35rem, 4vw, 2.2rem);
+        }
+
+        .auth-side-badge {
+            width: fit-content;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            border: 1px solid rgba(119, 232, 247, 0.18);
+            border-radius: 999px;
+            padding: 0.48rem 0.72rem;
+            color: #dffbff;
+            background: rgba(119, 232, 247, 0.075);
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .auth-side-title {
+            margin-top: 1.2rem;
+            font-size: clamp(1.7rem, 4vw, 2.55rem);
+            line-height: 1.02;
+            letter-spacing: -0.055em;
+            font-weight: 900;
+        }
+
+        .auth-side-description {
+            margin-top: 0.95rem;
+            color: rgba(203, 213, 225, 0.78);
+            line-height: 1.72;
+            font-weight: 560;
+        }
+
+        .auth-point-list {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1.55rem;
+        }
+
+        .auth-point {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 1rem;
+            padding: 0.82rem;
+            background: rgba(255, 255, 255, 0.045);
+            color: rgba(237, 244, 255, 0.86);
+            font-size: 0.91rem;
+            font-weight: 820;
+            line-height: 1.45;
+        }
+
+        .auth-point::before {
+            content: '';
+            width: 0.52rem;
+            height: 0.52rem;
+            flex: 0 0 auto;
+            margin-top: 0.35rem;
+            border-radius: 999px;
+            background: #fff7b0;
+            box-shadow: 0 0 12px rgba(255, 247, 176, 0.9), 0 0 20px rgba(119, 232, 247, 0.28);
+        }
+
+
+        body.auth-page {
+            background: #07111f;
+        }
+
+        body.auth-page .site-shell::before,
+        body.auth-page .aurora {
+            display: none;
+        }
+
+        body.auth-page .cursor-glow {
+            opacity: 0.28;
+        }
+
+        body.auth-page .auth-section {
+            min-height: 100vh;
+            padding: 0;
+            display: block;
+        }
+
+        .auth-shell {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: clamp(1.25rem, 3vw, 2rem) 0;
+        }
+
+        .auth-brand-minimal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.62rem;
+            margin-bottom: 1rem;
+            color: rgba(237, 244, 255, 0.92);
+            font-size: 1.02rem;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+        }
+
+        .auth-brand-minimal .brand-mark,
+        .auth-brand-minimal .brand-logo {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.72rem;
+        }
+
+        .auth-panel {
+            width: min(100%, 27.5rem);
+        }
+
+        .auth-panel .auth-card {
+            padding: 1.55rem;
+            border-radius: 1.35rem;
+            background: #0b1628;
+            border-color: rgba(210, 230, 255, 0.11);
+            box-shadow: 0 22px 54px rgba(0, 0, 0, 0.28);
+            backdrop-filter: none;
+        }
+
+        .auth-panel .auth-card::before,
+        .auth-panel .auth-card::after {
+            display: none;
+        }
+
+        .auth-panel .auth-header {
+            margin-bottom: 1.15rem;
+            text-align: center;
+        }
+
+        .auth-panel .section-kicker {
+            font-size: 0.7rem;
+            letter-spacing: 0.14em;
+            color: rgba(119, 232, 247, 0.85);
+        }
+
+        .auth-panel .auth-title {
+            margin-top: 0.45rem;
+            font-size: clamp(1.55rem, 4vw, 2rem);
+            line-height: 1.05;
+            letter-spacing: -0.055em;
+        }
+
+        .auth-panel .auth-description {
+            margin: 0.62rem auto 0;
+            max-width: 22rem;
+            color: rgba(203, 213, 225, 0.68);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .auth-panel .auth-form {
+            gap: 0.78rem;
+        }
+
+        .auth-panel .auth-field {
+            gap: 0.34rem;
+        }
+
+        .auth-panel .auth-label {
+            font-size: 0.78rem;
+            color: rgba(237, 244, 255, 0.8);
+        }
+
+        .auth-panel .auth-input {
+            min-height: 2.75rem;
+            border-radius: 0.82rem;
+            padding: 0.72rem 0.88rem;
+            font-size: 0.92rem;
+            font-weight: 700;
+            background: #071120;
+            border-color: rgba(210, 230, 255, 0.105);
+        }
+
+        .auth-panel .auth-input:focus {
+            border-color: rgba(119, 232, 247, 0.34);
+            background: #081427;
+            box-shadow: 0 0 0 3px rgba(119, 232, 247, 0.075);
+        }
+
+        .auth-panel .captcha-chip {
+            min-width: 4.5rem;
+            height: 2.75rem;
+            border-radius: 0.82rem;
+            background: #0e2138;
+            font-size: 0.9rem;
+        }
+
+        .auth-panel .auth-submit {
+            min-height: 2.85rem;
+            margin-top: 0.15rem;
+            border-radius: 0.9rem;
+            font-size: 0.93rem;
+            background: #edf7ff;
+            box-shadow: none;
+        }
+
+        .auth-panel .auth-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 30px rgba(42, 132, 230, 0.16);
+        }
+
+        .auth-panel .auth-actions-row {
+            justify-content: center;
+            gap: 0.45rem;
+            margin-top: 0.08rem;
+            font-size: 0.82rem;
+            text-align: center;
+        }
+
+        .auth-panel .auth-actions-row.is-between {
+            justify-content: space-between;
+        }
+
+        .auth-panel .auth-link {
+            color: rgba(216, 245, 255, 0.94);
+        }
+
+        .auth-panel .auth-alert {
+            margin-bottom: 0.85rem;
+            padding: 0.72rem 0.82rem;
+            border-radius: 0.82rem;
+            font-size: 0.85rem;
+        }
+
+        .auth-panel .auth-error {
+            font-size: 0.76rem;
+        }
+
+        .auth-muted-link {
+            display: inline-flex;
+            justify-content: center;
+            margin-top: 0.85rem;
+            width: 100%;
+            color: rgba(203, 213, 225, 0.62);
+            font-size: 0.8rem;
+            font-weight: 800;
+        }
+
+        .auth-muted-link:hover {
+            color: rgba(237, 244, 255, 0.88);
+        }
+
         .footer {
             border-top: 1px solid rgba(255, 255, 255, 0.075);
             background: rgba(2, 6, 23, 0.88);
@@ -933,8 +1380,13 @@
 
             .hero-grid,
             .split-grid,
-            .tournament-grid {
+            .tournament-grid,
+            .auth-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .auth-info-card {
+                order: -1;
             }
 
             .hero-card {
@@ -1015,6 +1467,14 @@
                 width: 100%;
             }
 
+            .auth-input-group {
+                grid-template-columns: 1fr;
+            }
+
+            .captcha-chip {
+                width: 100%;
+            }
+
             .floating-badge {
                 left: 1rem;
                 right: 1rem;
@@ -1040,7 +1500,7 @@
     </style>
 </head>
 <body
-    class="{{ ($homepageSettings->cursor_glow_enabled ?? true) ? 'has-custom-cursor' : '' }}"
+    class="{{ ($homepageSettings->cursor_glow_enabled ?? true) ? 'has-custom-cursor' : '' }} @yield('body_class')"
     style="--cursor-glow-size: {{ max(8, min(40, (int) ($homepageSettings->cursor_glow_size ?? 18))) * 0.16 }}rem;"
 >
     @if ($homepageSettings->cursor_glow_enabled ?? true)
@@ -1051,37 +1511,43 @@
     <div class="site-shell">
         <div class="aurora" aria-hidden="true"></div>
 
-        <header class="navbar">
-            <div class="container navbar-inner">
-                <a href="{{ route('home') }}" class="brand" aria-label="{{ $homepageSettings->brand_text ?? 'YoLearning' }} Home">
-                    @if (! empty($homepageSettings->brand_logo_path))
-                        <img src="{{ asset('storage/' . $homepageSettings->brand_logo_path) }}" alt="{{ $homepageSettings->brand_text ?? 'YoLearning' }}" class="brand-logo">
-                    @else
-                        <span class="brand-mark">{{ $homepageSettings->brand_initial ?? 'Y' }}</span>
-                    @endif
-                    <span>{{ $homepageSettings->brand_text ?? 'YoLearning' }}</span>
-                </a>
+        @hasSection('hide_navbar')
+        @else
+            <header class="navbar">
+                <div class="container navbar-inner">
+                    <a href="{{ route('home') }}" class="brand" aria-label="{{ $homepageSettings->brand_text ?? 'YoLearning' }} Home">
+                        @if (! empty($homepageSettings->brand_logo_path))
+                            <img src="{{ asset('storage/' . $homepageSettings->brand_logo_path) }}" alt="{{ $homepageSettings->brand_text ?? 'YoLearning' }}" class="brand-logo">
+                        @else
+                            <span class="brand-mark">{{ $homepageSettings->brand_initial ?? 'Y' }}</span>
+                        @endif
+                        <span>{{ $homepageSettings->brand_text ?? 'YoLearning' }}</span>
+                    </a>
 
-                <nav class="nav-links" aria-label="Navigasi utama">
-                    @foreach ($homepageNavItems as $navItem)
-                        <a href="{{ $navItem->url }}" class="nav-link @if ($navItem->style === 'primary') nav-button @elseif ($navItem->style === 'soft') nav-soft @elseif ($navItem->style === 'ghost') nav-ghost @endif">
-                            {{ $navItem->label }}
-                        </a>
-                    @endforeach
-                </nav>
-            </div>
-        </header>
+                    <nav class="nav-links" aria-label="Navigasi utama">
+                        @foreach ($homepageNavItems as $navItem)
+                            <a href="{{ $navItem->url }}" class="nav-link @if ($navItem->style === 'primary') nav-button @elseif ($navItem->style === 'soft') nav-soft @elseif ($navItem->style === 'ghost') nav-ghost @endif">
+                                {{ $navItem->label }}
+                            </a>
+                        @endforeach
+                    </nav>
+                </div>
+            </header>
+        @endif
 
         <main>
             @yield('content')
         </main>
 
-        <footer class="footer section-reveal">
-            <div class="container footer-inner">
-                <p>{{ $homepageSettings->footer_left ?? '© ' . date('Y') . ' YoLearning. Semua progres belajar tersimpan rapi.' }}</p>
-                <p>{{ $homepageSettings->footer_right ?? 'Belajar bahasa • Quiz • Tournament' }}</p>
-            </div>
-        </footer>
+        @hasSection('hide_footer')
+        @else
+            <footer class="footer section-reveal">
+                <div class="container footer-inner">
+                    <p>{{ $homepageSettings->footer_left ?? '© ' . date('Y') . ' YoLearning. Semua progres belajar tersimpan rapi.' }}</p>
+                    <p>{{ $homepageSettings->footer_right ?? 'Belajar bahasa • Quiz • Tournament' }}</p>
+                </div>
+            </footer>
+        @endif
     </div>
 
     <script>

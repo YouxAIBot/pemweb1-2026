@@ -123,6 +123,22 @@ class HomepageSettingResource extends Resource
         return HomepageSetting::query()->count() === 0;
     }
 
+
+    public static function canViewAny(): bool
+    {
+        return true;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return true;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return true;
+    }
+
     public static function getPages(): array
     {
         return [
