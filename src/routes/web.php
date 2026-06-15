@@ -5,6 +5,8 @@ use Livewire\Livewire;
 use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\Frontend\HomeController;
 use App\Http\Controllers\Frontend\AuthController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 /* NOTE: Do Not Remove
 / Livewire asset handling if using sub folder in domain
@@ -29,3 +31,12 @@ Route::post('/register', [AuthController::class, 'register'])->name('register.st
 Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request.frontend');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('password.email.frontend');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+Route::get('/logout', function (Request $request) {
+    Auth::logout();
+
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('home');
+})->name('logout.get');

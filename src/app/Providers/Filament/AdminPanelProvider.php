@@ -111,6 +111,7 @@ class AdminPanelProvider extends PanelProvider
                     ->shouldShowAvatarForm(),
             ])
             ->resources([
+                \App\Filament\Admin\Resources\UserResource::class,
                 config('filament-logger.activity_resource'),
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')

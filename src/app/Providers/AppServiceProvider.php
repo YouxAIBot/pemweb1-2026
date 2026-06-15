@@ -33,6 +33,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        /**
+         * Development-safe admin permission override.
+         *
+         * Filament Shield policies check granular permissions such as
+         * `view_any_user`. In this project the `super_admin` role is the
+         * owner role, so it must be allowed to pass every Gate check.
+         * Without this, resources like Users can be hidden from the sidebar
+         * even though the UserResource file exists.
+         */
+        Gate::before(function ($user, string $ability): ?bool {
+            return $user->hasRole('super_admin') ? true : null;
+        });
+
         Gate::policy(Activity::class, ActivityPolicy::class);
         Page::formActionsAlignment(Alignment::Right);
         Notifications::alignment(Alignment::End);

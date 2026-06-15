@@ -11,6 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
+
 class User extends Authenticatable implements FilamentUser, HasAvatar
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -63,7 +64,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     }
 
     public function canAccessPanel(Panel $panel): bool
-    {
-        return true;
-    }
+{
+    return $this->hasRole('super_admin') || $this->email === 'admin@admin.com';
+}
 }
