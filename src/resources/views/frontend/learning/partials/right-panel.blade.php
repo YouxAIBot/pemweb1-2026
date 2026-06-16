@@ -11,10 +11,10 @@
         @foreach ($missions as $mission)
             @php
                 $target = max((int) $mission->target, 1);
-                $progress = min((int) $mission->default_progress, $target);
+                $progress = min((int) ($mission->progress_value ?? 0), $target);
                 $percent = round(($progress / $target) * 100);
             @endphp
-            <div class="mission-card">
+            <div class="mission-card {{ ($mission->is_completed ?? false) ? 'completed' : '' }}">
                 <strong>{{ $mission->title }}</strong>
                 <div class="mission-progress"><span style="width:{{ $percent }}%"></span></div>
                 <div class="stat-row" style="margin-top:.35rem"><span>{{ $progress }}/{{ $target }}</span><span>{{ $mission->unit_label }}</span></div>

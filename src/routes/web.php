@@ -49,4 +49,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [LearningDashboardController::class, 'dashboard'])->name('dashboard');
     Route::get('/dashboard/parts/{part}', [LearningDashboardController::class, 'showPart'])->name('learning.parts.show');
     Route::get('/dashboard/parts/{part}/levels/{level}', [LearningDashboardController::class, 'showLevel'])->name('learning.levels.show');
+    Route::post('/dashboard/parts/{part}/levels/{level}/complete', [LearningDashboardController::class, 'completeLevel'])->name('learning.levels.complete');
 });

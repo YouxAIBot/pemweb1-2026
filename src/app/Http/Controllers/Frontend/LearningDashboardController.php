@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\DashboardDailyMission;
 use App\Models\DashboardMenu;
 use App\Models\DashboardSetting;
 use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use App\Models\LearningPart;
+use App\Models\User;
 use App\Models\UserLearningProfile;
 use App\Models\UserLevelProgress;
-use App\Models\User;
+use App\Services\DailyMissionProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -95,16 +95,23 @@ class LearningDashboardController extends Controller
             $this->syncProgressForUser($request->user()->id, $language, $level);
         }
 
-        return redirect()->route('dashboard')->with('learning_success', 'Petualangan belajar berhasil disiapkan.');
+        app(DailyMissionProgressService::class)->missionsForUser($request->user());
+
+        return redirect()
+            ->route('dashboard')
+            ->with('learning_success', 'Petualangan belajar berhasil disiapkan.');
     }
 
     public function dashboard(Request $request): View|RedirectResponse
     {
-        $profile = $request->user()->learningProfile()->with(['language.parts.levels', 'currentPart', 'currentLevel'])->first();
+        $user = $request->user();
+        $profile = $user->learningProfile()->with(['language.parts.levels', 'currentPart', 'currentLevel'])->first();
 
         if (! $profile?->onboarding_completed_at) {
             return redirect()->route('learning.onboarding');
         }
+
+        $this->ensureProgressRecords($profile);
 
         $language = $profile->language;
         $parts = collect();
@@ -117,50 +124,56 @@ class LearningDashboardController extends Controller
                 ->get();
         }
 
-        $progressByLevel = $this->progressByLevel($request->user()->id, $parts->pluck('levels')->flatten()->pluck('id')->all());
+        $progressByLevel = $this->progressByLevel($user->id, $parts->pluck('levels')->flatten()->pluck('id')->all());
 
         return view('frontend.learning.dashboard', [
             'setting' => $this->setting(),
-            'profile' => $profile,
+            'profile' => $profile->refresh()->load(['language', 'currentPart', 'currentLevel']),
             'language' => $language,
             'parts' => $parts,
             'progressByLevel' => $progressByLevel,
             'menus' => $this->menus(),
-            'missions' => $this->missions(),
-            'friends' => $this->friends($request->user()),
+            'missions' => $this->missions($user),
+            'friends' => $this->friends($user),
         ]);
     }
 
     public function showPart(Request $request, LearningPart $part): View|RedirectResponse
     {
-        $profile = $request->user()->learningProfile;
+        $user = $request->user();
+        $profile = $user->learningProfile;
 
         if (! $profile?->onboarding_completed_at) {
             return redirect()->route('learning.onboarding');
         }
 
         if ((int) $part->learning_language_id !== (int) $profile->learning_language_id) {
-            return redirect()->route('dashboard')->with('learning_error', 'Bagian ini bukan bagian dari bahasa yang sedang kamu pelajari.');
+            return redirect()
+                ->route('dashboard')
+                ->with('learning_error', 'Bagian ini bukan bagian dari bahasa yang sedang kamu pelajari.');
         }
 
+        $this->ensureProgressRecords($profile);
+
         $part->load(['language', 'levels' => fn ($query) => $query->active()->withCount('questions')->orderBy('sort_order')]);
-        $progressByLevel = $this->progressByLevel($request->user()->id, $part->levels->pluck('id')->all());
+        $progressByLevel = $this->progressByLevel($user->id, $part->levels->pluck('id')->all());
 
         return view('frontend.learning.part-map', [
             'setting' => $this->setting(),
-            'profile' => $profile->load(['language', 'currentLevel']),
+            'profile' => $profile->refresh()->load(['language', 'currentLevel']),
             'part' => $part,
             'levels' => $part->levels,
             'progressByLevel' => $progressByLevel,
             'menus' => $this->menus(),
-            'missions' => $this->missions(),
-            'friends' => $this->friends($request->user()),
+            'missions' => $this->missions($user),
+            'friends' => $this->friends($user),
         ]);
     }
 
     public function showLevel(Request $request, LearningPart $part, LearningLevel $level): View|RedirectResponse
     {
-        $profile = $request->user()->learningProfile;
+        $user = $request->user();
+        $profile = $user->learningProfile;
 
         if (! $profile?->onboarding_completed_at) {
             return redirect()->route('learning.onboarding');
@@ -170,24 +183,109 @@ class LearningDashboardController extends Controller
             abort(404);
         }
 
-        $level->load(['part.language', 'questions' => fn ($query) => $query->active()->with('options')->orderBy('sort_order')]);
+        $this->ensureProgressRecords($profile);
 
-        UserLevelProgress::firstOrCreate([
-            'user_id' => $request->user()->id,
-            'learning_level_id' => $level->id,
-        ], [
-            'status' => 'in_progress',
-        ]);
+        $progress = UserLevelProgress::query()
+            ->where('user_id', $user->id)
+            ->where('learning_level_id', $level->id)
+            ->first();
+
+        if (! $progress || $progress->status === 'locked') {
+            return redirect()
+                ->route('learning.parts.show', $part)
+                ->with('learning_error', 'Selesaikan level sebelumnya terlebih dahulu.');
+        }
+
+        if ($progress->status === 'available') {
+            $progress->update([
+                'status' => 'in_progress',
+            ]);
+        }
+
+        $level->load(['part.language', 'questions' => fn ($query) => $query->active()->with('options')->orderBy('sort_order')]);
 
         return view('frontend.learning.level-show', [
             'setting' => $this->setting(),
-            'profile' => $profile->load('language'),
+            'profile' => $profile->refresh()->load('language'),
             'part' => $part,
             'level' => $level,
+            'levelProgress' => $progress->refresh(),
             'menus' => $this->menus(),
-            'missions' => $this->missions(),
-            'friends' => $this->friends($request->user()),
+            'missions' => $this->missions($user),
+            'friends' => $this->friends($user),
         ]);
+    }
+
+    public function completeLevel(Request $request, LearningPart $part, LearningLevel $level): RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile;
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        if ((int) $level->learning_part_id !== (int) $part->id || (int) $part->learning_language_id !== (int) $profile->learning_language_id) {
+            abort(404);
+        }
+
+        $this->ensureProgressRecords($profile);
+
+        $progress = UserLevelProgress::query()
+            ->where('user_id', $user->id)
+            ->where('learning_level_id', $level->id)
+            ->first();
+
+        if (! $progress || $progress->status === 'locked') {
+            return redirect()
+                ->route('learning.parts.show', $part)
+                ->with('learning_error', 'Level ini masih terkunci.');
+        }
+
+        $wasCompleted = $progress->status === 'completed';
+        $questionCount = max($level->questions()->active()->count(), 1);
+        $studyMinutes = max(1, (int) ceil($questionCount * 2));
+
+        $progress->update([
+            'status' => 'completed',
+            'best_score' => max((int) $progress->best_score, 100),
+            'attempts' => (int) $progress->attempts + 1,
+            'completed_at' => $progress->completed_at ?? now(),
+        ]);
+
+        $nextLevel = $this->nextLevelAfter($level);
+
+        if ($nextLevel) {
+            $nextProgress = UserLevelProgress::firstOrCreate([
+                'user_id' => $user->id,
+                'learning_level_id' => $nextLevel->id,
+            ], [
+                'status' => 'available',
+            ]);
+
+            if ($nextProgress->status !== 'completed') {
+                $nextProgress->update([
+                    'status' => 'available',
+                ]);
+            }
+        }
+
+        if (! $wasCompleted) {
+            $profile->forceFill([
+                'total_xp' => (int) $profile->total_xp + (int) $level->xp_reward,
+                'streak' => max((int) $profile->streak, 1),
+                'current_part_id' => $nextLevel?->learning_part_id ?? $part->id,
+                'current_level_id' => $nextLevel?->id ?? $level->id,
+            ])->save();
+
+            app(DailyMissionProgressService::class)->addProgress($user, 'questions_answered', $questionCount);
+            app(DailyMissionProgressService::class)->addProgress($user, 'study_minutes', $studyMinutes);
+            app(DailyMissionProgressService::class)->addProgress($user, 'levels_completed', 1);
+        }
+
+        return redirect()
+            ->route('learning.parts.show', $part)
+            ->with('learning_success', $nextLevel ? 'Level selesai. Level berikutnya sudah terbuka.' : 'Level selesai. Semua level di bagian ini sudah kamu buka.');
     }
 
     private function abilityOptions(): array
@@ -256,25 +354,17 @@ class LearningDashboardController extends Controller
         ]);
     }
 
-    private function missions()
+    private function missions(User $user)
     {
         try {
-            if (Schema::hasTable('dashboard_daily_missions')) {
-                $missions = DashboardDailyMission::query()->active()->orderBy('sort_order')->get();
-
-                if ($missions->isNotEmpty()) {
-                    return $missions;
-                }
-            }
+            return app(DailyMissionProgressService::class)->missionsForUser($user);
         } catch (\Throwable) {
-            // fallback below
+            return collect([
+                (object) ['title' => 'Kerjakan 5 soal', 'mission_type' => 'questions_answered', 'target' => 5, 'progress_value' => 0, 'unit_label' => 'soal', 'is_completed' => false],
+                (object) ['title' => 'Belajar 10 menit', 'mission_type' => 'study_minutes', 'target' => 10, 'progress_value' => 0, 'unit_label' => 'menit', 'is_completed' => false],
+                (object) ['title' => 'Kerjakan 20 soal', 'mission_type' => 'questions_answered', 'target' => 20, 'progress_value' => 0, 'unit_label' => 'soal', 'is_completed' => false],
+            ]);
         }
-
-        return collect([
-            (object) ['title' => 'Kerjakan 5 soal', 'target' => 5, 'default_progress' => 2, 'unit_label' => 'soal'],
-            (object) ['title' => 'Belajar 10 menit', 'target' => 10, 'default_progress' => 3, 'unit_label' => 'menit'],
-            (object) ['title' => 'Kerjakan 20 soal', 'target' => 20, 'default_progress' => 2, 'unit_label' => 'soal'],
-        ]);
     }
 
     private function friends(User $user)
@@ -303,19 +393,41 @@ class LearningDashboardController extends Controller
             ->keyBy('learning_level_id');
     }
 
+    private function ensureProgressRecords(UserLearningProfile $profile): void
+    {
+        if (! $profile->language || ! $profile->currentLevel) {
+            return;
+        }
+
+        $this->syncProgressForUser($profile->user_id, $profile->language, $profile->currentLevel);
+    }
+
     private function syncProgressForUser(int $userId, LearningLanguage $language, LearningLevel $currentLevel): void
     {
-        $language->load(['parts.levels']);
+        $language->load(['parts' => fn ($query) => $query->active()->orderBy('sort_order'), 'parts.levels' => fn ($query) => $query->active()->orderBy('sort_order')]);
+        $currentLevel->loadMissing('part');
 
         foreach ($language->parts as $part) {
             foreach ($part->levels as $level) {
-                $status = 'locked';
+                $existing = UserLevelProgress::query()
+                    ->where('user_id', $userId)
+                    ->where('learning_level_id', $level->id)
+                    ->first();
 
-                if ($level->id === $currentLevel->id) {
-                    $status = 'available';
+                if ($existing?->status === 'completed') {
+                    continue;
                 }
 
-                if ($part->sort_order < $currentLevel->part->sort_order || ($part->id === $currentLevel->learning_part_id && $level->sort_order < $currentLevel->sort_order)) {
+                $status = 'locked';
+
+                if ((int) $level->id === (int) $currentLevel->id) {
+                    $status = $existing?->status === 'in_progress' ? 'in_progress' : 'available';
+                }
+
+                $isBeforeCurrentPart = (int) $part->sort_order < (int) $currentLevel->part->sort_order;
+                $isBeforeCurrentLevel = (int) $part->id === (int) $currentLevel->learning_part_id && (int) $level->sort_order < (int) $currentLevel->sort_order;
+
+                if ($isBeforeCurrentPart || $isBeforeCurrentLevel) {
                     $status = 'completed';
                 }
 
@@ -324,10 +436,38 @@ class LearningDashboardController extends Controller
                     'learning_level_id' => $level->id,
                 ], [
                     'status' => $status,
-                    'best_score' => $status === 'completed' ? 100 : 0,
-                    'completed_at' => $status === 'completed' ? now() : null,
+                    'best_score' => $status === 'completed' ? 100 : (int) ($existing?->best_score ?? 0),
+                    'completed_at' => $status === 'completed' ? ($existing?->completed_at ?? now()) : $existing?->completed_at,
                 ]);
             }
         }
+    }
+
+    private function nextLevelAfter(LearningLevel $level): ?LearningLevel
+    {
+        $level->loadMissing('part.language');
+
+        $nextInPart = LearningLevel::query()
+            ->active()
+            ->where('learning_part_id', $level->learning_part_id)
+            ->where('sort_order', '>', $level->sort_order)
+            ->orderBy('sort_order')
+            ->first();
+
+        if ($nextInPart) {
+            return $nextInPart;
+        }
+
+        $nextPart = LearningPart::query()
+            ->active()
+            ->where('learning_language_id', $level->part->learning_language_id)
+            ->where('sort_order', '>', $level->part->sort_order)
+            ->orderBy('sort_order')
+            ->first();
+
+        return $nextPart?->levels()
+            ->active()
+            ->orderBy('sort_order')
+            ->first();
     }
 }

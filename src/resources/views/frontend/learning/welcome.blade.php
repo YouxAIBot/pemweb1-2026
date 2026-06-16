@@ -29,10 +29,10 @@
 
     window.setTimeout(() => {
         document.body.classList.add('welcome-leaving');
-    }, 6200);
+    }, 5400);
 
     window.setTimeout(() => {
         window.location.href = targetUrl;
-    }, 6200);
+    }, 5900);
 </script>
 @endpush

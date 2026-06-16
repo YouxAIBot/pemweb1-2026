@@ -11,6 +11,7 @@ class DashboardDailyMission extends Model
 
     protected $fillable = [
         'title',
+        'mission_type',
         'target',
         'default_progress',
         'unit_label',

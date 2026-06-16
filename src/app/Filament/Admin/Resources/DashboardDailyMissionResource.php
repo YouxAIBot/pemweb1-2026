@@ -37,6 +37,15 @@ class DashboardDailyMissionResource extends Resource
         return $form->schema([
             Forms\Components\Section::make('Mission')->schema([
                 Forms\Components\TextInput::make('title')->required(),
+                Forms\Components\Select::make('mission_type')
+                    ->label('Mission Type')
+                    ->options([
+                        'questions_answered' => 'Jumlah soal dikerjakan',
+                        'study_minutes' => 'Menit belajar',
+                        'levels_completed' => 'Level selesai',
+                    ])
+                    ->default('questions_answered')
+                    ->required(),
                 Forms\Components\TextInput::make('target')->numeric()->default(1)->required(),
                 Forms\Components\TextInput::make('default_progress')->numeric()->default(0),
                 Forms\Components\TextInput::make('unit_label')->default('soal'),
@@ -50,6 +59,7 @@ class DashboardDailyMissionResource extends Resource
     {
         return $table->defaultSort('sort_order')->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->weight('bold'),
+            Tables\Columns\TextColumn::make('mission_type')->badge()->sortable(),
             Tables\Columns\TextColumn::make('target'),
             Tables\Columns\TextColumn::make('unit_label'),
             Tables\Columns\IconColumn::make('is_active')->boolean(),

@@ -62,6 +62,22 @@
                     </article>
                 @endforelse
             </div>
+
+            <form method="POST" action="{{ route('learning.levels.complete', [$part, $level]) }}" class="level-complete-form">
+                @csrf
+                <div>
+                    <small>Progress akun kamu</small>
+                    <h3>{{ ($levelProgress?->status ?? 'available') === 'completed' ? 'Level ini sudah selesai' : 'Siap menyelesaikan level ini?' }}</h3>
+                    <p>
+                        Klik tombol selesai untuk menyimpan progress akun ini, menambah progress misi harian, dan membuka level berikutnya.
+                    </p>
+                </div>
+
+                <button type="submit" class="complete-level-button">
+                    {{ ($levelProgress?->status ?? 'available') === 'completed' ? 'Selesaikan Lagi' : 'Selesaikan Level' }}
+                </button>
+            </form>
+
         </div>
     </main>
 

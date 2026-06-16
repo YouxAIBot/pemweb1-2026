@@ -38,9 +38,9 @@ class DashboardSeeder extends Seeder
         }
 
         $missions = [
-            ['title' => 'Kerjakan 5 soal', 'target' => 5, 'default_progress' => 2, 'unit_label' => 'soal', 'sort_order' => 1],
-            ['title' => 'Belajar selama 10 menit', 'target' => 10, 'default_progress' => 3, 'unit_label' => 'menit', 'sort_order' => 2],
-            ['title' => 'Kerjakan 20 soal', 'target' => 20, 'default_progress' => 2, 'unit_label' => 'soal', 'sort_order' => 3],
+            ['title' => 'Kerjakan 5 soal', 'mission_type' => 'questions_answered', 'target' => 5, 'default_progress' => 0, 'unit_label' => 'soal', 'sort_order' => 1],
+            ['title' => 'Belajar selama 10 menit', 'mission_type' => 'study_minutes', 'target' => 10, 'default_progress' => 0, 'unit_label' => 'menit', 'sort_order' => 2],
+            ['title' => 'Kerjakan 20 soal', 'mission_type' => 'questions_answered', 'target' => 20, 'default_progress' => 0, 'unit_label' => 'soal', 'sort_order' => 3],
         ];
 
         foreach ($missions as $mission) {

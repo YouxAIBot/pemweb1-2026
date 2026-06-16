@@ -54,8 +54,9 @@
         }
         .firefly{position:fixed;z-index:100;left:22px;top:62px;width:7px;height:7px;border-radius:999px;background:#fff6ac;box-shadow:0 0 16px #fff6ac,0 0 32px rgba(102,232,247,.72);pointer-events:none;animation:firefly 6s ease-in-out infinite alternate}
         @keyframes firefly{0%{transform:translate(0,0)}50%{transform:translate(34px,18px)}100%{transform:translate(12px,52px)}}
-        .auth-flash{position:fixed;right:1rem;bottom:1rem;z-index:200;padding:.9rem 1rem;border-radius:18px;border:1px solid rgba(102,232,247,.24);background:rgba(21,32,45,.86);box-shadow:var(--shadow);color:#eafcff;font-weight:850;animation:toast .5s ease both}
-        @keyframes toast{from{opacity:0;transform:translateY(1rem)}to{opacity:1;transform:translateY(0)}}
+        .auth-flash{position:fixed;right:1rem;bottom:1rem;z-index:200;padding:.9rem 1rem;border-radius:18px;border:1px solid rgba(102,232,247,.24);background:rgba(21,32,45,.88);box-shadow:var(--shadow);color:#eafcff;font-weight:850;animation:toastIn .35s ease both;transition:opacity .35s ease,transform .35s ease}
+        .auth-flash.is-hiding{opacity:0;transform:translateY(1rem) scale(.98);pointer-events:none}
+        @keyframes toastIn{from{opacity:0;transform:translateY(1rem) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
         /* ONBOARDING */
         .onboarding-page{min-height:100vh;padding:4rem 1rem 6rem;display:grid;place-items:center;position:relative;overflow:hidden}
@@ -83,10 +84,10 @@
         .questions-list{display:grid;gap:1rem}.question-card{border:1px solid var(--border);border-radius:24px;background:#1b1f29;padding:1rem;animation:dashIn .65s ease both}.question-card small{color:var(--cyan);font-weight:950}.question-card h3{margin:.35rem 0 .7rem}.question-card p{color:var(--muted);line-height:1.55}.audio-player{width:100%;margin:.7rem 0;filter:invert(1) hue-rotate(180deg);opacity:.9}.option-list{display:grid;gap:.5rem;margin-top:.75rem}.option-chip{display:flex;align-items:center;justify-content:space-between;gap:.8rem;border:1px solid var(--border);border-radius:16px;background:#242936;padding:.65rem .75rem}.option-chip.correct{border-color:rgba(73,211,139,.35)}
 
 
-        /* REVISION: cleaner scroll, welcome gate, and safer map spacing */
+        /* REVISION: per-user progress, lightweight welcome, clean scroll, and safer map spacing */
         html,
         body,
-        main-panel,
+        .main-panel,
         .side-panel,
         .right-panel,
         .learning-shell {
@@ -105,6 +106,67 @@
             display: none;
         }
 
+        .mission-card.completed {
+            border-color: rgba(73, 211, 139, 0.32);
+            background: linear-gradient(145deg, rgba(73, 211, 139, 0.10), rgba(34, 37, 45, 0.96));
+        }
+
+        .mission-card.completed strong::after {
+            content: " ✓";
+            color: var(--green);
+        }
+
+        .level-complete-form {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            background: linear-gradient(145deg, rgba(102, 232, 247, 0.08), rgba(27, 31, 41, 0.95));
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            animation: dashIn 0.65s ease both;
+        }
+
+        .level-complete-form small {
+            color: var(--cyan);
+            font-weight: 950;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .level-complete-form h3 {
+            margin-top: 0.25rem;
+            font-size: 1.1rem;
+            letter-spacing: -0.04em;
+        }
+
+        .level-complete-form p {
+            margin-top: 0.25rem;
+            color: var(--muted);
+            font-weight: 700;
+            line-height: 1.5;
+        }
+
+        .complete-level-button {
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 999px;
+            padding: 0.85rem 1rem;
+            background: #edf7ff;
+            color: #07101f;
+            font-weight: 950;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .complete-level-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 42px rgba(102, 232, 247, 0.20);
+        }
+
         .welcome-gate {
             --welcome-y: -55px;
             --welcome-second-y: 55px;
@@ -115,9 +177,9 @@
             overflow: hidden;
             background:
                 radial-gradient(
-                    circle at 48% 34%,
-                    rgba(102, 232, 247, 0.10),
-                    transparent 24rem
+                    circle at 50% 34%,
+                    rgba(102, 232, 247, 0.08),
+                    transparent 22rem
                 ),
                 linear-gradient(
                     135deg,
@@ -134,23 +196,23 @@
             padding: 2rem;
             text-align: center;
             transform: translateY(var(--welcome-y));
-            animation: welcomeIn 0.75s ease both;
+            animation: welcomeIn 0.55s ease both;
+            will-change: opacity, transform;
         }
 
         .welcome-kicker {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid rgba(102, 232, 247, 0.28);
+            border: 1px solid rgba(102, 232, 247, 0.24);
             border-radius: 999px;
             padding: 0.45rem 0.8rem;
-            background: rgba(102, 232, 247, 0.08);
+            background: rgba(102, 232, 247, 0.07);
             color: var(--cyan);
             font-size: 0.8rem;
             font-weight: 950;
             letter-spacing: 0.18em;
             text-transform: uppercase;
-            box-shadow: 0 0 40px rgba(102, 232, 247, 0.12);
         }
 
         .welcome-line {
@@ -158,13 +220,14 @@
             letter-spacing: -0.075em;
             line-height: 0.95;
             text-wrap: balance;
-            text-shadow: 0 30px 90px rgba(78, 117, 255, 0.24);
+            text-shadow: 0 22px 70px rgba(78, 117, 255, 0.20);
         }
 
         .welcome-line-one {
             margin-top: 1rem;
             font-size: clamp(2.2rem, 8vw, 6.5rem);
             animation: welcomeFirst 5.2s ease both;
+            will-change: opacity, transform;
         }
 
         .welcome-line-two {
@@ -175,10 +238,11 @@
             opacity: 0;
             font-size: clamp(2rem, 7vw, 6rem);
             transform: translate(
-                -50%, 
-                calc(0% + var(--welcome-y) + var(welcome-second-y))
+                -50%,
+                calc(-35% + var(--welcome-y) + var(--welcome-second-y))
             );
             animation: welcomeSecond 5.2s ease both;
+            will-change: opacity, transform;
         }
 
         .welcome-caption {
@@ -186,58 +250,45 @@
             color: var(--muted);
             font-weight: 800;
             animation: welcomeCaption 5.2s ease both;
+            will-change: opacity, transform;
         }
 
         .welcome-orb {
             position: absolute;
             border-radius: 999px;
-            filter: blur(8px);
-            opacity: 0.55;
+            opacity: 0.28;
             pointer-events: none;
+            transform: translateZ(0);
         }
 
         .orb-one {
-            width: 16rem;
-            height: 16rem;
+            width: 14rem;
+            height: 14rem;
             left: 12%;
             top: 16%;
-            background:
-                radial-gradient(
-                    circle,
-                    rgba(102, 232, 247, 0.20),
-                    transparent 65%
-                );
-            animation: orbFloat 4s ease-in-out infinite alternate;
+            background: radial-gradient(circle, rgba(102, 232, 247, 0.18), transparent 65%);
         }
 
         .orb-two {
-            width: 20rem;
-            height: 20rem;
+            width: 17rem;
+            height: 17rem;
             right: 10%;
             bottom: 10%;
-            background:
-                radial-gradient(
-                    circle,
-                    rgba(110, 124, 247, 0.18),
-                    transparent 65%
-                );
-            animation: orbFloat 5s ease-in-out infinite alternate-reverse;
+            background: radial-gradient(circle, rgba(110, 124, 247, 0.16), transparent 65%);
         }
 
         body.welcome-leaving .welcome-gate {
-            animation: welcomeLeave 0.7s ease both;
+            animation: welcomeLeave 0.45s ease both;
         }
 
         @keyframes welcomeIn {
             from {
                 opacity: 0;
-                filter: blur(18px);
-                transform: translateY(calc(var(--welcome-y) + 24px)) scale(0.97);
+                transform: translateY(calc(var(--welcome-y) + 18px)) scale(0.985);
             }
 
             to {
                 opacity: 1;
-                filter: blur(0);
                 transform: translateY(var(--welcome-y)) scale(1);
             }
         }
@@ -245,98 +296,58 @@
         @keyframes welcomeFirst {
             0% {
                 opacity: 0;
-                filter: blur(18px);
-                transform: translateY(22px);
+                transform: translateY(18px) scale(0.985);
             }
 
-            14% {
-                opacity: 1;
-                filter: blur(0);
-                transform: translateY(0);
-            }
-
+            14%,
             44% {
                 opacity: 1;
-                filter: blur(0);
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
 
-            58% {
-                opacity: 0;
-                filter: blur(18px);
-                transform: translateY(-18px);
-            }
-
+            58%,
             100% {
                 opacity: 0;
-                filter: blur(18px);
-                transform: translateY(-18px);
+                transform: translateY(-16px) scale(1.01);
             }
         }
 
         @keyframes welcomeSecond {
-            0% {
-                opacity: 0;
-                filter: blur(20px);
-                transform: translate(
-                    -50%, 
-                    calc(-30% + var(--welcome-y)+var(--welcome-second-y))
-                ) scale(0.97);
-            }
-
+            0%,
             50% {
                 opacity: 0;
-                filter: blur(20px);
                 transform: translate(
-                    -50%, 
-                    calc(-30% + var(--welcome-y)+var(--welcome-second-y))
-                ) scale(0.97);
+                    -50%,
+                    calc(-20% + var(--welcome-y) + var(--welcome-second-y))
+                ) scale(0.985);
             }
 
-            66% {
-                opacity: 1;
-                filter: blur(0);
-                transform: translate(
-                    -50%, 
-                    calc(-40% + var(--welcome-y) + var(--welcome-second-y))
-                ) scale(1);
-            }
-
+            66%,
             88% {
                 opacity: 1;
-                filter: blur(0);
                 transform: translate(
-                    -50%, 
-                    calc(-40% + var(--welcome-y) + var(--welcome-second-y))
+                    -50%,
+                    calc(-35% + var(--welcome-y) + var(--welcome-second-y))
                 ) scale(1);
             }
 
             100% {
                 opacity: 0;
-                filter: blur(16px);
                 transform: translate(
-                    -50%, 
-                    calc(-52% + var(--welcome-y) + var(--welcome-second-y))
-                )  scale(1.02);
+                    -50%,
+                    calc(-48% + var(--welcome-y) + var(--welcome-second-y))
+                ) scale(1.01);
             }
         }
 
         @keyframes welcomeCaption {
-            0% {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
+            0%,
             58% {
                 opacity: 0;
                 transform: translateY(10px);
             }
 
-            70% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-
+            70%,
             90% {
                 opacity: 1;
                 transform: translateY(0);
@@ -351,18 +362,7 @@
         @keyframes welcomeLeave {
             to {
                 opacity: 0;
-                filter: blur(18px);
-                transform: scale(1.02);
-            }
-        }
-
-        @keyframes orbFloat {
-            from {
-                transform: translate3d(0, 0, 0) scale(1);
-            }
-
-            to {
-                transform: translate3d(28px, -18px, 0) scale(1.08);
+                transform: scale(1.01);
             }
         }
 
@@ -418,7 +418,8 @@
 
         @media (max-width: 760px) {
             .welcome-gate {
-                --welcome-y: -55px;
+                --welcome-y: -35px;
+                --welcome-second-y: 45px;
             }
 
             .map-title {
@@ -428,8 +429,12 @@
             .map-wrap {
                 min-height: 680px;
             }
+
+            .level-complete-form {
+                align-items: stretch;
+                flex-direction: column;
+            }
         }
-        @media (max-width:760px){.map-title{padding:1rem 1rem 0}.map-wrap{min-height:680px}.welcome-line-two{top:48%}}
 
         @media (max-width:1100px){.app-frame{grid-template-columns:240px minmax(0,1fr)}.right-panel{display:none}.language-grid{grid-template-columns:repeat(2,1fr)}}
         @media (max-width:760px){.app-frame{display:block;height:auto;min-height:100vh}.side-panel{position:relative;border-right:0;border-bottom:1px solid var(--border)}.main-panel{min-height:100vh}.language-grid{grid-template-columns:1fr}.onboarding-page{padding:1rem}.map-wrap{min-height:620px}.level-node{width:68px;height:68px;font-size:1.25rem}.content-area{padding:1rem}.main-topbar{height:auto;align-items:flex-start;gap:.7rem;flex-direction:column;padding:1rem}}
@@ -440,13 +445,24 @@
     <div class="learning-shell">
         <div class="firefly"></div>
         @if (session('learning_success') || session('auth_success'))
-            <div class="auth-flash">{{ session('learning_success') ?? session('auth_success') }}</div>
+            <div class="auth-flash" data-auto-dismiss-toast>{{ session('learning_success') ?? session('auth_success') }}</div>
         @endif
         @if (session('learning_error'))
-            <div class="auth-flash">{{ session('learning_error') }}</div>
+            <div class="auth-flash" data-auto-dismiss-toast>{{ session('learning_error') }}</div>
         @endif
         @yield('content')
     </div>
+    <script>
+        document.querySelectorAll('[data-auto-dismiss-toast]').forEach((toast) => {
+            window.setTimeout(() => {
+                toast.classList.add('is-hiding');
+            }, 3200);
+
+            window.setTimeout(() => {
+                toast.remove();
+            }, 3700);
+        });
+    </script>
     @stack('scripts')
 </body>
 </html>
