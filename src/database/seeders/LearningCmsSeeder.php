@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use App\Models\LearningPart;
-use App\Models\LearningQuestion;
 use Illuminate\Database\Seeder;
 
 class LearningCmsSeeder extends Seeder
@@ -60,28 +59,8 @@ class LearningCmsSeeder extends Seeder
                     'is_active' => true,
                 ]);
 
-                $question = LearningQuestion::firstOrCreate([
-                    'learning_level_id' => $level->id,
-                    'sort_order' => 1,
-                ], [
-                    'type' => $level->type,
-                    'instruction' => $level->type === 'listening' ? 'Dengarkan audio dan pilih arti yang benar.' : 'Pilih jawaban terbaik.',
-                    'question_text' => $level->type === 'real_case'
-                        ? 'Kamu bertemu orang baru. Respons mana yang paling natural untuk memulai percakapan?'
-                        : 'Apa jawaban yang paling tepat untuk latihan ini?',
-                    'correct_answer' => 'Jawaban A',
-                    'explanation' => 'Pembahasan ini bisa diganti admin dari Filament. Untuk listening, admin juga bisa upload file suara.',
-                    'points' => 10,
-                    'is_active' => true,
-                ]);
-
-                if ($question->options()->count() === 0) {
-                    $question->options()->createMany([
-                        ['option_text' => 'Jawaban A', 'is_correct' => true, 'sort_order' => 1],
-                        ['option_text' => 'Jawaban B', 'is_correct' => false, 'sort_order' => 2],
-                        ['option_text' => 'Jawaban C', 'is_correct' => false, 'sort_order' => 3],
-                    ]);
-                }
+                // Questions are intentionally not seeded.
+                // Admin can create fresh questions from LEARNING CMS → Questions.
             }
         }
     }
