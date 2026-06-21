@@ -38,19 +38,65 @@ class LearningCmsSeeder extends Seeder
                 'is_active' => true,
             ]);
 
+            if ($languageData['slug'] !== 'inggris') {
+                continue;
+            }
+
             $levels = [
-                ['title' => 'Pilihan Ganda Dasar', 'slug' => 'pilihan-ganda-dasar', 'type' => 'multiple_choice', 'short_label' => '1', 'description' => 'Pilih jawaban yang paling tepat.', 'sort_order' => 1, 'position_x' => 16, 'position_y' => 22],
-                ['title' => 'Sambung Kata', 'slug' => 'sambung-kata', 'type' => 'word_match', 'short_label' => '2', 'description' => 'Cocokkan kata dengan arti yang benar.', 'sort_order' => 2, 'position_x' => 48, 'position_y' => 18],
-                ['title' => 'Listening Pemula', 'slug' => 'listening-pemula', 'type' => 'listening', 'short_label' => '3', 'description' => 'Dengarkan audio lalu pilih jawaban.', 'sort_order' => 3, 'position_x' => 78, 'position_y' => 32],
-                ['title' => 'Soal Situasi Nyata', 'slug' => 'soal-situasi-nyata', 'type' => 'real_case', 'short_label' => '4', 'description' => 'Jawab berdasarkan konteks kehidupan nyata.', 'sort_order' => 4, 'position_x' => 54, 'position_y' => 55],
-                ['title' => 'Mix Challenge', 'slug' => 'mix-challenge', 'type' => 'mixed', 'short_label' => '5', 'description' => 'Gabungan semua tipe latihan.', 'sort_order' => 5, 'position_x' => 18, 'position_y' => 48],
-                ['title' => 'Mini Review', 'slug' => 'mini-review', 'type' => 'mixed', 'short_label' => '6', 'description' => 'Review cepat sebelum naik bagian.', 'sort_order' => 6, 'position_x' => 24, 'position_y' => 78],
-                ['title' => 'Final Mission', 'slug' => 'final-mission', 'type' => 'real_case', 'short_label' => '7', 'description' => 'Selesaikan misi terakhir bagian ini.', 'sort_order' => 7, 'position_x' => 55, 'position_y' => 84],
-                ['title' => 'Boss Level', 'slug' => 'boss-level', 'type' => 'mixed', 'short_label' => '8', 'description' => 'Tantangan akhir bagian 1.', 'sort_order' => 8, 'position_x' => 78, 'position_y' => 70],
+                [
+                    'title' => 'Level 1 - Introduction',
+                    'slug' => 'level-1-introduction',
+                    'type' => 'mixed',
+                    'short_label' => '1',
+                    'description' => 'Level awal untuk mengenal kosakata dan instruksi dasar.',
+                    'sort_order' => 1,
+                    'position_x' => 16,
+                    'position_y' => 24,
+                ],
+                [
+                    'title' => 'Level 2 - Basic Vocabulary',
+                    'slug' => 'level-2-basic-vocabulary',
+                    'type' => 'mixed',
+                    'short_label' => '2',
+                    'description' => 'Latihan kosakata dasar dengan beberapa jenis soal.',
+                    'sort_order' => 2,
+                    'position_x' => 45,
+                    'position_y' => 42,
+                ],
+                [
+                    'title' => 'Level 3 - Simple Sentence',
+                    'slug' => 'level-3-simple-sentence',
+                    'type' => 'mixed',
+                    'short_label' => '3',
+                    'description' => 'Menyusun dan memahami kalimat sederhana.',
+                    'sort_order' => 3,
+                    'position_x' => 72,
+                    'position_y' => 28,
+                ],
+                [
+                    'title' => 'Level 4 - Listening Practice',
+                    'slug' => 'level-4-listening-practice',
+                    'type' => 'mixed',
+                    'short_label' => '4',
+                    'description' => 'Latihan listening menggunakan alur cerita dan pertanyaan.',
+                    'sort_order' => 4,
+                    'position_x' => 56,
+                    'position_y' => 64,
+                ],
+                [
+                    'title' => 'Level 5 - Daily Conversation',
+                    'slug' => 'level-5-daily-conversation',
+                    'type' => 'mixed',
+                    'short_label' => '5',
+                    'description' => 'Latihan percakapan harian dan skenario nyata.',
+                    'sort_order' => 5,
+                    'position_x' => 25,
+                    'position_y' => 76,
+                ],
             ];
 
             foreach ($levels as $levelData) {
-                $level = LearningLevel::updateOrCreate([
+                LearningLevel::updateOrCreate([
                     'learning_part_id' => $part->id,
                     'slug' => $levelData['slug'],
                 ], $levelData + [
@@ -58,9 +104,6 @@ class LearningCmsSeeder extends Seeder
                     'passing_score' => 70,
                     'is_active' => true,
                 ]);
-
-                // Questions are intentionally not seeded.
-                // Admin can create fresh questions from LEARNING CMS → Questions.
             }
         }
     }

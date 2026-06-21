@@ -29,9 +29,11 @@ class DashboardSeeder extends Seeder
             ['label' => 'Huruf', 'url' => '#', 'icon_label' => 'Aa', 'sort_order' => 2],
             ['label' => 'Toko', 'url' => '#', 'icon_label' => '◈', 'sort_order' => 3],
             ['label' => 'Misi', 'url' => '#', 'icon_label' => '✓', 'sort_order' => 4],
-            ['label' => 'Turnamen & Games', 'url' => '#', 'icon_label' => '⚡', 'sort_order' => 5],
+            ['label' => 'Turnamen', 'url' => '/turnamen', 'icon_label' => '⚡', 'sort_order' => 5],
             ['label' => 'Pengaturan', 'url' => '#', 'icon_label' => '⚙', 'sort_order' => 6],
         ];
+
+        DashboardMenu::whereIn('label', ['Games', 'Turnamen & Games'])->update(['is_active' => false]);
 
         foreach ($menus as $menu) {
             DashboardMenu::updateOrCreate(['label' => $menu['label']], $menu + ['menu_group' => 'main', 'is_active' => true]);

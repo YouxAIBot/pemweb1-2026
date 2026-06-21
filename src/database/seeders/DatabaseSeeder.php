@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             HomepageSeeder::class,
             AuthPageSeeder::class,
             DashboardSeeder::class,
+            GameModeSeeder::class,
             LearningCmsSeeder::class,
         ]);
     }

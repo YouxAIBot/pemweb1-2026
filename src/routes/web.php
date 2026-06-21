@@ -47,6 +47,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/onboarding', [LearningDashboardController::class, 'onboarding'])->name('learning.onboarding');
     Route::post('/onboarding', [LearningDashboardController::class, 'storeOnboarding'])->name('learning.onboarding.store');
     Route::get('/dashboard', [LearningDashboardController::class, 'dashboard'])->name('dashboard');
+    Route::get('/games', fn () => redirect()->route('learning.games'));
+    Route::get('/turnamen', [LearningDashboardController::class, 'games'])->name('learning.games');
+    Route::get('/tournament', fn () => redirect()->route('learning.tournament'));
+    Route::get('/turnamen/cepat', [LearningDashboardController::class, 'tournament'])->name('learning.tournament');
+    Route::post('/turnamen/cepat', [LearningDashboardController::class, 'submitTournament'])->name('learning.tournament.submit');
+    Route::get('/api/turnamen/modes', [LearningDashboardController::class, 'apiGameModes'])->name('api.tournament.modes');
+    Route::get('/api/turnamen/leaderboard', [LearningDashboardController::class, 'apiTournamentLeaderboard'])->name('api.tournament.leaderboard');
     Route::get('/dashboard/parts/{part}', [LearningDashboardController::class, 'showPart'])->name('learning.parts.show');
     Route::get('/dashboard/parts/{part}/levels/{level}', [LearningDashboardController::class, 'showLevel'])->name('learning.levels.show');
     Route::post('/dashboard/parts/{part}/levels/{level}/complete', [LearningDashboardController::class, 'completeLevel'])->name('learning.levels.complete');

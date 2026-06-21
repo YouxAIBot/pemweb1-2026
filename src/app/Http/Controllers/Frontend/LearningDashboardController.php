@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Frontend;
 use App\Http\Controllers\Controller;
 use App\Models\DashboardMenu;
 use App\Models\DashboardSetting;
+use App\Models\GameMode;
 use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use App\Models\LearningPart;
+use App\Models\TournamentAttempt;
 use App\Models\User;
 use App\Models\UserLearningProfile;
 use App\Models\UserLevelProgress;
@@ -242,13 +244,22 @@ class LearningDashboardController extends Controller
                 ->with('learning_error', 'Level ini masih terkunci.');
         }
 
+        $data = $request->validate([
+            'study_seconds' => ['nullable', 'integer', 'min:0'],
+            'correct_count' => ['nullable', 'integer', 'min:0'],
+            'total_questions' => ['nullable', 'integer', 'min:1'],
+        ]);
+
         $wasCompleted = $progress->status === 'completed';
-        $questionCount = max($level->questions()->active()->count(), 1);
-        $studyMinutes = max(1, (int) ceil($questionCount * 2));
+        $questionCount = max((int) ($data['total_questions'] ?? $level->questions()->active()->count()), 1);
+        $correctCount = max((int) ($data['correct_count'] ?? $questionCount), 0);
+        $studySeconds = max((int) ($data['study_seconds'] ?? 0), 0);
+        $studyMinutes = max(1, (int) ceil($studySeconds / 60));
+        $score = min(100, (int) round(($correctCount / $questionCount) * 100));
 
         $progress->update([
             'status' => 'completed',
-            'best_score' => max((int) $progress->best_score, 100),
+            'best_score' => max((int) $progress->best_score, $score),
             'attempts' => (int) $progress->attempts + 1,
             'completed_at' => $progress->completed_at ?? now(),
         ]);
@@ -287,6 +298,252 @@ class LearningDashboardController extends Controller
             ->route('learning.parts.show', $part)
             ->with('learning_success', $nextLevel ? 'Level selesai. Level berikutnya sudah terbuka.' : 'Level selesai. Semua level di bagian ini sudah kamu buka.');
     }
+
+
+
+    public function games(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile()->with('language')->first();
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $games = GameMode::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($games->isEmpty()) {
+            $games = collect([
+                new GameMode([
+                    'key' => 'tournament',
+                    'title' => 'Turnamen',
+                    'subtitle' => 'Challenge cepat',
+                    'description' => 'Jawab soal acak, kumpulkan skor, dan naik leaderboard.',
+                    'icon_label' => '⚡',
+                    'route_name' => 'learning.tournament',
+                    'button_label' => 'Mulai Turnamen',
+                    'status' => 'active',
+                    'is_active' => true,
+                ]),
+            ]);
+        }
+
+        $leaderboard = TournamentAttempt::query()
+            ->with('user')
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->orderByDesc('score')
+            ->orderBy('duration_seconds')
+            ->latest()
+            ->take(5)
+            ->get();
+
+        return view('frontend.learning.games', [
+            'setting' => $this->setting(),
+            'profile' => $profile,
+            'games' => $games,
+            'leaderboard' => $leaderboard,
+            'menus' => $this->menus(),
+            'missions' => $this->missions($user),
+            'friends' => $this->friends($user),
+        ]);
+    }
+
+
+
+    public function apiGameModes(Request $request)
+    {
+        $user = $request->user();
+        $profile = $user?->learningProfile;
+
+        $games = GameMode::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function (GameMode $game) {
+                $playable = $game->isPlayable() && \Illuminate\Support\Facades\Route::has($game->route_name);
+
+                return [
+                    'key' => $game->key,
+                    'title' => $game->title,
+                    'subtitle' => $game->subtitle,
+                    'description' => $game->description,
+                    'icon_label' => $game->icon_label,
+                    'status' => $game->status,
+                    'button_label' => $game->button_label,
+                    'url' => $playable ? route($game->route_name) : null,
+                    'playable' => $playable,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'language_id' => $profile?->learning_language_id,
+            'games' => $games,
+        ]);
+    }
+
+    public function apiTournamentLeaderboard(Request $request)
+    {
+        $profile = $request->user()?->learningProfile;
+        $languageId = $profile?->learning_language_id;
+
+        $leaderboard = TournamentAttempt::query()
+            ->with('user:id,name')
+            ->when($languageId, fn ($query) => $query->where('learning_language_id', $languageId))
+            ->orderByDesc('score')
+            ->orderBy('duration_seconds')
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(fn (TournamentAttempt $attempt) => [
+                'name' => $attempt->user?->name ?? 'User',
+                'score' => $attempt->score,
+                'correct_count' => $attempt->correct_count,
+                'total_questions' => $attempt->total_questions,
+                'duration_seconds' => $attempt->duration_seconds,
+            ])
+            ->values();
+
+        return response()->json([
+            'language_id' => $languageId,
+            'leaderboard' => $leaderboard,
+        ]);
+    }
+
+
+    public function tournament(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile()->with('language')->first();
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $questions = LearningQuestion::query()
+            ->active()
+            ->whereHas('level.part', function ($query) use ($profile) {
+                $query->where('learning_language_id', $profile->learning_language_id);
+            })
+            ->whereHas('options')
+            ->with(['options' => fn ($query) => $query->orderBy('sort_order')])
+            ->inRandomOrder()
+            ->limit(5)
+            ->get();
+
+        $leaderboard = TournamentAttempt::query()
+            ->with('user')
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->orderByDesc('score')
+            ->orderBy('duration_seconds')
+            ->latest()
+            ->take(10)
+            ->get();
+
+        $myBest = TournamentAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->orderByDesc('score')
+            ->orderBy('duration_seconds')
+            ->first();
+
+        return view('frontend.learning.tournament', [
+            'setting' => $this->setting(),
+            'profile' => $profile,
+            'questions' => $questions,
+            'leaderboard' => $leaderboard,
+            'myBest' => $myBest,
+            'menus' => $this->menus(),
+            'missions' => $this->missions($user),
+            'friends' => $this->friends($user),
+            'result' => session('tournament_result'),
+        ]);
+    }
+
+    public function submitTournament(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile;
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $data = $request->validate([
+            'question_ids' => ['required', 'array', 'min:1'],
+            'question_ids.*' => ['integer', 'exists:learning_questions,id'],
+            'answers' => ['nullable', 'array'],
+            'answers.*' => ['nullable', 'integer'],
+            'duration_seconds' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $questionIds = array_map('intval', $data['question_ids']);
+        $questions = LearningQuestion::query()
+            ->active()
+            ->whereIn('id', $questionIds)
+            ->whereHas('level.part', function ($query) use ($profile) {
+                $query->where('learning_language_id', $profile->learning_language_id);
+            })
+            ->with('options')
+            ->get()
+            ->keyBy('id');
+
+        $correctCount = 0;
+        $answerLog = [];
+
+        foreach ($questionIds as $questionId) {
+            $question = $questions->get($questionId);
+
+            if (! $question) {
+                continue;
+            }
+
+            $selectedOptionId = (int) (($data['answers'][$questionId] ?? 0));
+            $correctOption = $question->options->firstWhere('is_correct', true);
+            $isCorrect = $correctOption && (int) $correctOption->id === $selectedOptionId;
+
+            if ($isCorrect) {
+                $correctCount += 1;
+            }
+
+            $answerLog[] = [
+                'question_id' => $question->id,
+                'selected_option_id' => $selectedOptionId ?: null,
+                'correct_option_id' => $correctOption?->id,
+                'is_correct' => (bool) $isCorrect,
+            ];
+        }
+
+        $totalQuestions = max($questions->count(), 1);
+        $score = (int) round(($correctCount / $totalQuestions) * 100);
+        $durationSeconds = max((int) ($data['duration_seconds'] ?? 0), 0);
+
+        $attempt = TournamentAttempt::create([
+            'user_id' => $user->id,
+            'learning_language_id' => $profile->learning_language_id,
+            'score' => $score,
+            'correct_count' => $correctCount,
+            'total_questions' => $totalQuestions,
+            'duration_seconds' => $durationSeconds,
+            'answers' => $answerLog,
+        ]);
+
+        app(DailyMissionProgressService::class)->addProgress($user, 'questions_answered', $totalQuestions);
+        app(DailyMissionProgressService::class)->addProgress($user, 'study_minutes', max(1, (int) ceil($durationSeconds / 60)));
+
+        return redirect()
+            ->route('learning.tournament')
+            ->with('tournament_result', [
+                'score' => $attempt->score,
+                'correct_count' => $attempt->correct_count,
+                'total_questions' => $attempt->total_questions,
+                'duration_seconds' => $attempt->duration_seconds,
+            ]);
+    }
+
 
     private function abilityOptions(): array
     {
@@ -349,7 +606,7 @@ class LearningDashboardController extends Controller
             (object) ['label' => 'Huruf', 'url' => '#', 'icon_label' => 'Aa'],
             (object) ['label' => 'Toko', 'url' => '#', 'icon_label' => '◈'],
             (object) ['label' => 'Misi', 'url' => '#', 'icon_label' => '✓'],
-            (object) ['label' => 'Turnamen & Games', 'url' => '#', 'icon_label' => '⚡'],
+            (object) ['label' => 'Turnamen', 'url' => route('learning.games'), 'icon_label' => '⚡'],
             (object) ['label' => 'Pengaturan', 'url' => '#', 'icon_label' => '⚙'],
         ]);
     }

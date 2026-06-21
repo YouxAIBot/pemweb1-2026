@@ -7,9 +7,9 @@
     $safeMapY = function ($level): float {
         $baseY = (float) ($level->position_y ?? 50);
 
-        // UI revision: level nodes must start below the title/description area.
-        // This keeps old admin coordinates usable while preventing text collision.
-        return max(34, min(90, $baseY + 12));
+        // Position is controlled from admin. Keep it close to the saved coordinate
+        // so the map returns to the original layout and nodes do not jump down.
+        return max(18, min(88, $baseY));
     };
 @endphp
 <div class="app-frame">

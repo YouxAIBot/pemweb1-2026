@@ -78,17 +78,7 @@ class LearningQuestionResource extends Resource
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->afterStateUpdated(function ($state, Forms\Set $set): void {
-                                if (! $state) {
-                                    return;
-                                }
-
-                                $level = LearningLevel::find($state);
-
-                                if ($level && $level->type !== 'mixed') {
-                                    $set('type', $level->type);
-                                }
-                            }),
+                            ->helperText('Satu level bisa berisi banyak soal dengan jenis berbeda. Pilih levelnya, lalu tentukan jenis soal pada field di bawah.'),
 
                         Forms\Components\Select::make('type')
                             ->label('Jenis Soal')
@@ -96,7 +86,7 @@ class LearningQuestionResource extends Resource
                             ->required()
                             ->default('multiple_choice')
                             ->live()
-                            ->helperText('Jika level bertipe Mix, jenis soal bisa dibuat bebas per soal.'),
+                            ->helperText('Pilih bebas per soal. Dalam satu level boleh ada pilihan ganda, sambung kata, matching, listening, dan jenis lain secara campuran.'),
 
                         Forms\Components\TextInput::make('sort_order')
                             ->label('Urutan Soal')
@@ -181,50 +171,112 @@ class LearningQuestionResource extends Resource
     private static function listeningSection(): Forms\Components\Section
     {
         return Forms\Components\Section::make('Pembuat Soal Listening')
-            ->description('Gunakan bagian ini untuk soal berbasis audio. Admin bisa upload suara soal dan suara per pilihan.')
+            ->description('Listening dibuat sebagai alur bebas: admin bisa menambah Kalimat + Audio beberapa kali, lalu menambah Soal + Jawaban, lalu lanjut cerita lagi sesuka kebutuhan.')
             ->visible(fn (Get $get): bool => $get('type') === 'listening')
             ->schema([
                 Forms\Components\TextInput::make('instruction')
                     ->label('Instruksi')
                     ->maxLength(255)
-                    ->default('Dengarkan audio dan pilih jawaban yang benar.'),
+                    ->default('Dengarkan cerita, lalu jawab pertanyaan sampai benar.'),
 
-                Forms\Components\FileUpload::make('audio_path')
-                    ->label('Audio Soal / Listening')
-                    ->acceptedFileTypes([
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/ogg',
-                        'audio/mp4',
-                        'audio/x-m4a',
-                    ])
-                    ->directory('learning/audio/questions')
-                    ->required(fn (Get $get): bool => $get('type') === 'listening')
+                Forms\Components\TextInput::make('settings.story_button_label')
+                    ->label('Label Tombol Mulai')
+                    ->maxLength(120)
+                    ->default('Mulai'),
+
+                Forms\Components\Placeholder::make('api_tools_hint')
+                    ->label('Generate Audio via API')
+                    ->content('Buka menu API INTEGRATION → API Tools untuk generate audio otomatis dari teks. Copy storage path hasil generate ke field Audio Cerita atau Audio Pertanyaan jika dibutuhkan.')
                     ->columnSpanFull(),
 
-                Forms\Components\Textarea::make('settings.audio_transcript')
-                    ->label('Transkrip Audio')
-                    ->rows(3)
-                    ->columnSpanFull()
-                    ->helperText('Opsional. Bisa dipakai admin untuk dokumentasi atau pembahasan.'),
+                Forms\Components\Builder::make('settings.listening_flow')
+                    ->label('Alur Listening')
+                    ->helperText('Tambahkan blok Kalimat + Audio untuk cerita, lalu blok Soal + Jawaban saat ingin memunculkan pertanyaan. Urutannya bebas: cerita, cerita, soal, cerita, soal, dan seterusnya.')
+                    ->blocks([
+                        Forms\Components\Builder\Block::make('story')
+                            ->label('Kalimat + Audio')
+                            ->schema([
+                                Forms\Components\Textarea::make('story_text')
+                                    ->label('Kalimat Cerita')
+                                    ->rows(4)
+                                    ->required()
+                                    ->columnSpanFull()
+                                    ->helperText('Kalimat ini akan tampil di layar. Setelah user klik Mulai, audio diputar otomatis sampai selesai.'),
+
+                                Forms\Components\FileUpload::make('story_audio_path')
+                                    ->label('Audio Cerita')
+                                    ->acceptedFileTypes([
+                                        'audio/mpeg',
+                                        'audio/wav',
+                                        'audio/ogg',
+                                        'audio/mp4',
+                                        'audio/x-m4a',
+                                    ])
+                                    ->directory('learning/audio/listening/story')
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(1),
+
+                        Forms\Components\Builder\Block::make('question')
+                            ->label('Soal + Jawaban')
+                            ->schema([
+                                Forms\Components\Textarea::make('question_text')
+                                    ->label('Soal')
+                                    ->rows(3)
+                                    ->required()
+                                    ->columnSpanFull(),
+
+                                Forms\Components\FileUpload::make('question_audio_path')
+                                    ->label('Audio Pertanyaan')
+                                    ->acceptedFileTypes([
+                                        'audio/mpeg',
+                                        'audio/wav',
+                                        'audio/ogg',
+                                        'audio/mp4',
+                                        'audio/x-m4a',
+                                    ])
+                                    ->directory('learning/audio/listening/questions')
+                                    ->columnSpanFull()
+                                    ->helperText('Opsional. Jika diupload, pilihan jawaban baru muncul setelah audio pertanyaan selesai dan delay sekitar 1 detik.'),
+
+                                Forms\Components\Repeater::make('options')
+                                    ->label('Pilihan Jawaban')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('text')
+                                            ->label('Teks Opsi')
+                                            ->required(),
+
+                                        Forms\Components\Toggle::make('is_correct')
+                                            ->label('Jawaban Benar')
+                                            ->default(false),
+                                    ])
+                                    ->columns(2)
+                                    ->defaultItems(2)
+                                    ->minItems(2)
+                                    ->addActionLabel('Tambah Pilihan Jawaban')
+                                    ->columnSpanFull()
+                                    ->helperText('Pilihan jawaban bebas sebanyak kebutuhan admin. Tandai minimal satu sebagai benar.'),
+
+                                Forms\Components\Textarea::make('explanation')
+                                    ->label('Pembahasan')
+                                    ->rows(2)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(1),
+                    ])
+                    ->addActionLabel('Tambah Kalimat / Soal')
+                    ->collapsible()
+                    ->cloneable()
+                    ->reorderable()
+                    ->columnSpanFull(),
 
                 Forms\Components\Textarea::make('question_text')
-                    ->label('Pertanyaan Setelah Audio')
+                    ->label('Judul Internal / Fallback')
+                    ->rows(2)
+                    ->default('Listening flow')
                     ->required(fn (Get $get): bool => $get('type') === 'listening')
-                    ->rows(4)
+                    ->helperText('Dipakai sebagai judul internal/fallback. Soal utama bisa dibuat lewat blok Soal + Jawaban pada Alur Listening.')
                     ->columnSpanFull(),
-
-                Forms\Components\FileUpload::make('image_path')
-                    ->label('Gambar Pendukung')
-                    ->image()
-                    ->directory('learning/images/questions')
-                    ->imageEditor()
-                    ->columnSpanFull(),
-
-                static::optionsRepeater(
-                    minItems: 2,
-                    helperText: 'Opsi listening bisa punya audio masing-masing jika diperlukan.'
-                ),
             ])
             ->columns(2);
     }
