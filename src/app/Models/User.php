@@ -81,4 +81,20 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         return $this->hasMany(TournamentAttempt::class);
     }
 
+    public function duelStats()
+    {
+        return $this->hasOne(DuelPlayerStat::class);
+    }
+
+    public function duelSessionsAsPlayerOne()
+    {
+        return $this->hasMany(DuelSession::class, 'player_one_id');
+    }
+
+    public function duelSessionsAsPlayerTwo()
+    {
+        return $this->hasMany(DuelSession::class, 'player_two_id');
+    }
+
+
 }

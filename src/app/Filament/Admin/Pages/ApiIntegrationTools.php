@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Services\Integrations\DeepLTranslationService;
+use App\Services\Integrations\EdgeTtsLocalService;
 use App\Services\Integrations\GoogleTextToSpeechService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -33,6 +34,16 @@ class ApiIntegrationTools extends Page
     public ?string $ttsResultPath = null;
 
     public ?string $ttsResultUrl = null;
+
+    public ?string $edgeText = null;
+
+    public string $edgeVoice = 'en-US-AriaNeural';
+
+    public ?string $edgeFileName = null;
+
+    public ?string $edgeResultPath = null;
+
+    public ?string $edgeResultUrl = null;
 
     public ?string $translateText = null;
 
@@ -77,6 +88,38 @@ class ApiIntegrationTools extends Page
         } catch (Throwable $exception) {
             Notification::make()
                 ->title('Gagal generate audio')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function generateEdgeTts(): void
+    {
+        $this->validate([
+            'edgeText' => ['required', 'string', 'max:4500'],
+            'edgeVoice' => ['required', 'string', 'max:120'],
+            'edgeFileName' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        try {
+            $result = app(EdgeTtsLocalService::class)->generateToPublicStorage(
+                text: $this->edgeText,
+                voice: $this->edgeVoice,
+                fileName: $this->edgeFileName,
+            );
+
+            $this->edgeResultPath = $result['path'];
+            $this->edgeResultUrl = $result['url'];
+
+            Notification::make()
+                ->title('Audio Edge TTS berhasil dibuat')
+                ->body('Copy path audio lalu tempel ke Path Audio Cerita / Path Audio Pertanyaan.')
+                ->success()
+                ->send();
+        } catch (Throwable $exception) {
+            Notification::make()
+                ->title('Gagal generate Edge TTS')
                 ->body($exception->getMessage())
                 ->danger()
                 ->send();

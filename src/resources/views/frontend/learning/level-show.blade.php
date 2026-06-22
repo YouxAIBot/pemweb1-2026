@@ -3,6 +3,25 @@
 @section('title', $level->title . ' - YoLearning')
 
 @php
+    function learningAudioUrl(?string $path): ?string
+    {
+        if (blank($path)) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        $path = ltrim($path, '/');
+
+        if (str_starts_with($path, 'storage/')) {
+            return asset($path);
+        }
+
+        return asset('storage/' . $path);
+    }
+
     $quizQuestions = $level->questions->map(function ($question) {
         $settings = $question->settings ?? [];
 
@@ -11,7 +30,7 @@
 
             return [
                 'text' => $segment['text'] ?? '',
-                'audioUrl' => $audioPath ? asset('storage/' . $audioPath) : null,
+                'audioUrl' => learningAudioUrl($audioPath),
             ];
         })->values();
 
@@ -20,7 +39,7 @@
             $data = $item['data'] ?? $item;
 
             if ($type === 'question') {
-                $questionAudioPath = $data['question_audio_path'] ?? null;
+                $questionAudioPath = $data['question_audio_manual_path'] ?? ($data['question_audio_path'] ?? null);
                 $options = collect($data['options'] ?? [])->map(function ($option, $optionIndex) {
                     return [
                         'id' => $optionIndex + 1,
@@ -33,19 +52,19 @@
                     'id' => $itemIndex + 1,
                     'type' => 'question',
                     'questionText' => $data['question_text'] ?? '',
-                    'questionAudioUrl' => $questionAudioPath ? asset('storage/' . $questionAudioPath) : null,
+                    'questionAudioUrl' => learningAudioUrl($questionAudioPath),
                     'explanation' => $data['explanation'] ?? '',
                     'options' => $options,
                 ];
             }
 
-            $storyAudioPath = $data['story_audio_path'] ?? null;
+            $storyAudioPath = $data['story_audio_manual_path'] ?? ($data['story_audio_path'] ?? null);
 
             return [
                 'id' => $itemIndex + 1,
                 'type' => 'story',
                 'storyText' => $data['story_text'] ?? '',
-                'storyAudioUrl' => $storyAudioPath ? asset('storage/' . $storyAudioPath) : null,
+                'storyAudioUrl' => learningAudioUrl($storyAudioPath),
             ];
         })->values();
 
@@ -66,13 +85,13 @@
                         'id' => ($stepIndex * 2) + 1,
                         'type' => 'story',
                         'storyText' => $step['story_text'] ?? '',
-                        'storyAudioUrl' => $storyAudioPath ? asset('storage/' . $storyAudioPath) : null,
+                        'storyAudioUrl' => learningAudioUrl($storyAudioPath),
                     ],
                     [
                         'id' => ($stepIndex * 2) + 2,
                         'type' => 'question',
                         'questionText' => $step['question_text'] ?? '',
-                        'questionAudioUrl' => $questionAudioPath ? asset('storage/' . $questionAudioPath) : null,
+                        'questionAudioUrl' => learningAudioUrl($questionAudioPath),
                         'explanation' => $step['explanation'] ?? '',
                         'options' => $options,
                     ],
@@ -87,7 +106,7 @@
                 'id' => $index + 1,
                 'left' => $pair['left'] ?? '',
                 'right' => $pair['right'] ?? '',
-                'audioUrl' => $audioPath ? asset('storage/' . $audioPath) : null,
+                'audioUrl' => learningAudioUrl($audioPath),
             ];
         })->values();
 
@@ -97,14 +116,14 @@
             'typeLabel' => \App\Models\LearningLevel::TYPES[$question->type] ?? str($question->type)->headline()->toString(),
             'instruction' => $question->instruction ?: 'Jawab pertanyaan berikut.',
             'questionText' => $question->question_text,
-            'audioUrl' => $question->audio_path ? asset('storage/' . $question->audio_path) : null,
+            'audioUrl' => learningAudioUrl($question->audio_path),
             'imageUrl' => $question->image_path ? asset('storage/' . $question->image_path) : null,
             'points' => (int) $question->points,
             'timeLimit' => $question->time_limit,
             'explanation' => $question->explanation,
             'settings' => [
                 'audioTranscript' => $settings['audio_transcript'] ?? null,
-                'questionAudioUrl' => ! empty($settings['question_audio_path']) ? asset('storage/' . $settings['question_audio_path']) : null,
+                'questionAudioUrl' => learningAudioUrl($settings['question_audio_manual_path'] ?? ($settings['question_audio_path'] ?? null)),
                 'scenarioContext' => $settings['scenario_context'] ?? null,
                 'idealResponse' => $settings['ideal_response'] ?? null,
                 'mixNote' => $settings['mix_note'] ?? null,
@@ -117,7 +136,7 @@
                 return [
                     'id' => $option->id,
                     'text' => $option->option_text,
-                    'audioUrl' => $option->audio_path ? asset('storage/' . $option->audio_path) : null,
+                    'audioUrl' => learningAudioUrl($option->audio_path),
                     'imageUrl' => $option->image_path ? asset('storage/' . $option->image_path) : null,
                     'isCorrect' => (bool) $option->is_correct,
                 ];

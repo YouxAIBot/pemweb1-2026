@@ -27,9 +27,9 @@ class GameModeSeeder extends Seeder
                 'subtitle' => 'Adu cepat lawan teman',
                 'description' => 'Mode duel real-time untuk menjawab soal melawan user lain.',
                 'icon_label' => '⚔',
-                'route_name' => null,
-                'button_label' => 'Segera Hadir',
-                'status' => 'coming_soon',
+                'route_name' => 'learning.duel.lobby',
+                'button_label' => 'Cari Lawan',
+                'status' => 'active',
                 'sort_order' => 2,
             ],
             [

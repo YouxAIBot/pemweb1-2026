@@ -45,18 +45,19 @@
                         @csrf
 
                         <div class="auth-field">
-                            <label for="identifier" class="auth-label">{{ $authSetting->identifier_label ?? 'Nama atau Email' }}</label>
+                            <label for="email" class="auth-label">{{ $authSetting->identifier_label ?? 'Email' }}</label>
                             <input
-                                id="identifier"
-                                name="identifier"
-                                type="text"
-                                value="{{ old('identifier') }}"
+                                id="email"
+                                name="email"
+                                type="email"
+                                value="{{ old('email') }}"
                                 class="auth-input"
-                                placeholder="Nama atau email"
-                                autocomplete="username"
+                                placeholder="nama@email.com"
+                                autocomplete="email"
                                 required
                             >
-                            @error('identifier')
+                            <p class="auth-hint">Login wajib memakai email supaya tidak tertukar dengan akun lain yang punya nama sama.</p>
+                            @error('email')
                                 <p class="auth-error">{{ $message }}</p>
                             @enderror
                         </div>

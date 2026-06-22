@@ -17,6 +17,10 @@ class AuthController extends Controller
 {
     public function showLogin(Request $request): View|RedirectResponse
     {
+        if (Auth::check()) {
+            return redirect()->route('learning.welcome');
+        }
+
         $this->prepareCaptcha($request, 'login');
 
         return view('frontend.auth.login', [
@@ -30,21 +34,25 @@ class AuthController extends Controller
         $this->validateCaptcha($request, 'login');
 
         $credentials = $request->validate([
-            'identifier' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string'],
         ], [
-            'identifier.required' => 'Nama atau email wajib diisi.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Login sekarang wajib memakai email agar akun tidak tertukar dengan nama yang sama.',
             'password.required' => 'Password wajib diisi.',
         ]);
 
-        $identifier = trim($credentials['identifier']);
-        $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
+        $email = strtolower(trim($credentials['email']));
 
-        if (! Auth::attempt([$field => $identifier, 'password' => $credentials['password']])) {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        if (! Auth::attempt(['email' => $email, 'password' => $credentials['password']])) {
             $this->prepareCaptcha($request, 'login', force: true);
 
             throw ValidationException::withMessages([
-                'identifier' => 'Nama/email atau password tidak cocok.',
+                'email' => 'Email atau password tidak cocok.',
             ]);
         }
 
@@ -60,6 +68,10 @@ class AuthController extends Controller
 
     public function showRegister(Request $request): View|RedirectResponse
     {
+        if (Auth::check()) {
+            return redirect()->route('learning.welcome');
+        }
+
         $this->prepareCaptcha($request, 'register');
 
         return view('frontend.auth.register', [
@@ -98,6 +110,10 @@ class AuthController extends Controller
         } catch (\Throwable) {
             // Role seeding may not have run yet. The account is still stored safely.
         }
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         Auth::login($user);
         $request->session()->regenerate();

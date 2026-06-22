@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\Frontend\HomeController;
 use App\Http\Controllers\Frontend\AuthController;
 use App\Http\Controllers\Frontend\LearningDashboardController;
+use App\Http\Controllers\Frontend\DuelController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -51,6 +52,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/turnamen', [LearningDashboardController::class, 'games'])->name('learning.games');
     Route::get('/tournament', fn () => redirect()->route('learning.tournament'));
     Route::get('/turnamen/cepat', [LearningDashboardController::class, 'tournament'])->name('learning.tournament');
+    Route::get('/turnamen/duel', [DuelController::class, 'lobby'])->name('learning.duel.lobby');
+    Route::post('/turnamen/duel/find-match', [DuelController::class, 'findMatch'])->name('learning.duel.find');
+    Route::get('/turnamen/duel/queue-status', [DuelController::class, 'queueStatus'])->name('learning.duel.queue.status');
+    Route::post('/turnamen/duel/cancel-queue', [DuelController::class, 'cancelQueue'])->name('learning.duel.queue.cancel');
+    Route::get('/api/turnamen/duel/{duelSession}/state', [DuelController::class, 'state'])->name('api.duel.state');
+    Route::post('/api/turnamen/duel/{duelSession}/answer', [DuelController::class, 'answer'])->name('api.duel.answer');
+    Route::post('/api/turnamen/duel/{duelSession}/finish', [DuelController::class, 'finish'])->name('api.duel.finish');
+    Route::get('/turnamen/duel/{duelSession}', [DuelController::class, 'room'])->name('learning.duel.room');
     Route::post('/turnamen/cepat', [LearningDashboardController::class, 'submitTournament'])->name('learning.tournament.submit');
     Route::get('/api/turnamen/modes', [LearningDashboardController::class, 'apiGameModes'])->name('api.tournament.modes');
     Route::get('/api/turnamen/leaderboard', [LearningDashboardController::class, 'apiTournamentLeaderboard'])->name('api.tournament.leaderboard');

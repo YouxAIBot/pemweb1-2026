@@ -186,7 +186,7 @@ class LearningQuestionResource extends Resource
 
                 Forms\Components\Placeholder::make('api_tools_hint')
                     ->label('Generate Audio via API')
-                    ->content('Buka menu API INTEGRATION → API Tools untuk generate audio otomatis dari teks. Copy storage path hasil generate ke field Audio Cerita atau Audio Pertanyaan jika dibutuhkan.')
+                    ->content('Buka API INTEGRATION → API Tools → Edge TTS Gratis untuk generate audio otomatis. Copy path hasil generate ke field Path Audio Cerita atau Path Audio Pertanyaan.')
                     ->columnSpanFull(),
 
                 Forms\Components\Builder::make('settings.listening_flow')
@@ -204,7 +204,7 @@ class LearningQuestionResource extends Resource
                                     ->helperText('Kalimat ini akan tampil di layar. Setelah user klik Mulai, audio diputar otomatis sampai selesai.'),
 
                                 Forms\Components\FileUpload::make('story_audio_path')
-                                    ->label('Audio Cerita')
+                                    ->label('Upload Audio Cerita')
                                     ->acceptedFileTypes([
                                         'audio/mpeg',
                                         'audio/wav',
@@ -213,6 +213,13 @@ class LearningQuestionResource extends Resource
                                         'audio/x-m4a',
                                     ])
                                     ->directory('learning/audio/listening/story')
+                                    ->columnSpanFull()
+                                    ->helperText('Pakai ini kalau ingin upload file audio manual.'),
+
+                                Forms\Components\TextInput::make('story_audio_manual_path')
+                                    ->label('Path Audio Cerita')
+                                    ->placeholder('learning/audio/generated/edge-tts/anna-intro.mp3')
+                                    ->helperText('Isi ini kalau audio dibuat dari Edge TTS/API Tools. Jika field ini diisi, sistem akan memakai path ini.')
                                     ->columnSpanFull(),
                             ])
                             ->columns(1),
@@ -227,7 +234,7 @@ class LearningQuestionResource extends Resource
                                     ->columnSpanFull(),
 
                                 Forms\Components\FileUpload::make('question_audio_path')
-                                    ->label('Audio Pertanyaan')
+                                    ->label('Upload Audio Pertanyaan')
                                     ->acceptedFileTypes([
                                         'audio/mpeg',
                                         'audio/wav',
@@ -237,7 +244,13 @@ class LearningQuestionResource extends Resource
                                     ])
                                     ->directory('learning/audio/listening/questions')
                                     ->columnSpanFull()
-                                    ->helperText('Opsional. Jika diupload, pilihan jawaban baru muncul setelah audio pertanyaan selesai dan delay sekitar 1 detik.'),
+                                    ->helperText('Opsional. Pakai ini kalau ingin upload file audio manual.'),
+
+                                Forms\Components\TextInput::make('question_audio_manual_path')
+                                    ->label('Path Audio Pertanyaan')
+                                    ->placeholder('learning/audio/generated/edge-tts/question-1.mp3')
+                                    ->helperText('Isi ini kalau audio pertanyaan dibuat dari Edge TTS/API Tools. Jika field ini diisi, sistem akan memakai path ini.')
+                                    ->columnSpanFull(),
 
                                 Forms\Components\Repeater::make('options')
                                     ->label('Pilihan Jawaban')

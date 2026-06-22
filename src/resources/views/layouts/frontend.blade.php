@@ -989,6 +989,14 @@
             box-shadow: 0 0 0 4px rgba(119, 232, 247, 0.08);
         }
 
+        .auth-hint {
+            color: rgba(203, 213, 225, 0.7);
+            font-size: 0.78rem;
+            font-weight: 760;
+            line-height: 1.45;
+            margin-top: -0.25rem;
+        }
+
         .auth-error {
             color: #fecdd3;
             font-size: 0.82rem;

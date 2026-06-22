@@ -46,7 +46,7 @@ class AuthPageSetting extends Model
                 'kicker' => 'Masuk akun',
                 'title' => 'Login',
                 'description' => 'Masuk dengan akun yang sudah terdaftar.',
-                'identifier_label' => 'Nama atau Email',
+                'identifier_label' => 'Email',
                 'password_label' => 'Password',
                 'captcha_label' => 'Verifikasi',
                 'submit_label' => 'Masuk',
