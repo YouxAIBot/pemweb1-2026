@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/turnamen/quiz/join', [QuizRoomController::class, 'join'])->name('learning.quiz.join');
     Route::get('/turnamen/quiz/{room}', [QuizRoomController::class, 'show'])->name('learning.quiz.room');
     Route::post('/turnamen/quiz/{room}/questions', [QuizRoomController::class, 'addQuestion'])->name('learning.quiz.questions.store');
+    Route::post('/turnamen/quiz/{room}/questions/{question}', [QuizRoomController::class, 'updateQuestion'])->name('learning.quiz.questions.update');
     Route::post('/turnamen/quiz/{room}/start', [QuizRoomController::class, 'start'])->name('learning.quiz.start');
     Route::post('/turnamen/quiz/{room}/finish', [QuizRoomController::class, 'finish'])->name('learning.quiz.finish');
     Route::get('/api/turnamen/quiz/{room}/state', [QuizRoomController::class, 'state'])->name('api.quiz.state');

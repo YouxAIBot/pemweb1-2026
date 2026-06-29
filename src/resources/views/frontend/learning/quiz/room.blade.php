@@ -1,8 +1,34 @@
 @extends('layouts.learning')
 
-@section('title', $room->title . ' - Quiz Room')
-
 @section('content')
+@php
+    $room = $room ?? request()->route('room');
+
+    if (is_numeric($room)) {
+        $room = \App\Models\QuizRoom::with(['questions.options', 'language', 'owner'])->findOrFail($room);
+    }
+
+    $questionEditorData = $room->questions->map(function ($question) {
+        return [
+            'id' => $question->id,
+            'order' => $question->question_order,
+            'question_text' => $question->question_text,
+            'seconds_limit' => $question->seconds_limit,
+            'update_url' => route('learning.quiz.questions.update', [$room, $question]),
+            'options' => collect(range(1, 4))->map(function ($order) use ($question) {
+                $option = $question->options->firstWhere('sort_order', $order);
+
+                return [
+                    'answer_text' => $option?->answer_text ?? '',
+                    'image_path' => $option?->image_path,
+                    'is_correct' => (bool) $option?->is_correct,
+                    'sort_order' => $order,
+                ];
+            })->values(),
+        ];
+    })->values();
+@endphp
+
 <div class="quiz-page" data-answer-url="{{ route('api.quiz.answer', $room) }}" data-state-url="{{ route('api.quiz.state', $room) }}" data-csrf="{{ csrf_token() }}">
     <header class="quiz-top">
         <a href="{{ route('learning.quiz.index') }}" class="quiz-back">← Quiz Room</a>
@@ -41,29 +67,34 @@
                 @endif
             </section>
 
-            <section class="quiz-panel">
-                <small>{{ $isOwner && $room->status === 'draft' ? 'Tambah Soal' : 'Arena Soal' }}</small>
+            <section class="quiz-panel quiz-editor-panel">
+                <small>{{ $isOwner && $room->status === 'draft' ? 'Simpan Soal' : 'Arena Soal' }}</small>
 
                 @if ($isOwner && $room->status === 'draft')
-                    <form method="POST" action="{{ route('learning.quiz.questions.store', $room) }}" enctype="multipart/form-data" class="quiz-form">
+                    <form method="POST" action="{{ route('learning.quiz.questions.store', $room) }}" enctype="multipart/form-data" class="quiz-form" id="quizQuestionForm" data-create-url="{{ route('learning.quiz.questions.store', $room) }}">
                         @csrf
+                        <div class="editor-mode">
+                            <span id="editorModeLabel">Soal Baru</span>
+                            <button type="button" id="newQuestionButton">＋ Soal Baru</button>
+                        </div>
+
                         <label>Pertanyaan
-                            <textarea name="question_text" required placeholder="Tulis pertanyaan"></textarea>
+                            <textarea name="question_text" required placeholder="Tulis pertanyaan" data-question-text>{{ old('question_text') }}</textarea>
                         </label>
                         <label>Gambar Pertanyaan <input type="file" name="question_image" accept="image/*"></label>
-                        <label>Waktu per soal <input type="number" name="seconds_limit" value="20" min="5" max="120"></label>
+                        <label>Waktu per soal <input type="number" name="seconds_limit" value="{{ old('seconds_limit', 20) }}" min="5" max="120" data-seconds-limit></label>
                         @for ($i = 0; $i < 4; $i++)
                             <label>Jawaban {{ chr(65 + $i) }}
-                                <input type="text" name="options[{{ $i }}][answer_text]" placeholder="Teks jawaban {{ chr(65 + $i) }}">
+                                <input type="text" name="options[{{ $i }}][answer_text]" placeholder="Teks jawaban {{ chr(65 + $i) }}" data-option-text="{{ $i }}" value="{{ old('options.' . $i . '.answer_text') }}">
                                 <input type="file" name="options[{{ $i }}][image]" accept="image/*">
                             </label>
                         @endfor
                         <label>Jawaban Benar
-                            <select name="correct_option" required>
+                            <select name="correct_option" required data-correct-option>
                                 <option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option>
                             </select>
                         </label>
-                        <button type="submit">Tambah Soal</button>
+                        <button type="submit" id="saveQuestionButton">Simpan Soal</button>
                     </form>
                 @else
                     @if ($room->status === 'draft')
@@ -98,14 +129,31 @@
                     @endif
                 @endif
             </section>
+
+            @if ($isOwner && $room->status === 'draft')
+                <aside class="quiz-panel question-sidebar">
+                    <small>Daftar Soal</small>
+                    <p class="quiz-muted">Klik soal untuk mengubah isi pertanyaan dan jawabannya.</p>
+                    <div class="question-mini-list">
+                        @forelse ($room->questions as $question)
+                            <button type="button" class="question-mini-card" data-edit-question="{{ $question->id }}">
+                                <b>SOAL {{ $question->question_order }}</b>
+                                <span>“{{ \Illuminate\Support\Str::limit($question->question_text, 86) }}”</span>
+                            </button>
+                        @empty
+                            <p class="quiz-muted">Belum ada soal di room ini.</p>
+                        @endforelse
+                    </div>
+                </aside>
+            @endif
         </div>
 
-        @if ($isOwner)
+        @if ($isOwner && $room->status !== 'draft')
             <section class="quiz-panel" style="margin-top:1rem">
                 <small>Daftar Soal</small>
                 <div class="quiz-list">
                     @forelse ($room->questions as $question)
-                        <div class="quiz-row"><div><b>{{ $question->question_order }}. {{ $question->question_text }}</b><span>{{ $question->options->count() }} jawaban • {{ $question->seconds_limit }} detik</span></div></div>
+                        <div class="quiz-row"><div><b>SOAL {{ $question->question_order }}</b><span>“{{ $question->question_text }}”</span></div></div>
                     @empty
                         <p class="quiz-muted">Belum ada soal di room ini.</p>
                     @endforelse
@@ -120,7 +168,7 @@
 <style>
     html, body { min-height:100%; overflow-y:auto; }
     .quiz-page { min-height:100vh; padding:1rem; background:#080d18; }
-    .quiz-top, .quiz-shell { width:min(1080px,100%); margin-inline:auto; }
+    .quiz-top, .quiz-shell { width:min(1240px,100%); margin-inline:auto; }
     .quiz-top { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1rem; }
     .quiz-back, .quiz-chip { display:inline-flex; align-items:center; gap:.55rem; border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,.055); padding:.72rem 1rem; font-weight:950; }
     .quiz-shell { border:1px solid var(--border); border-radius:30px; background:rgba(18,24,38,.86); box-shadow:var(--shadow); padding:clamp(1rem,4vw,2rem); }
@@ -128,7 +176,7 @@
     .quiz-head small, .quiz-panel small { color:var(--cyan); font-weight:950; letter-spacing:.13em; text-transform:uppercase; font-size:.74rem; }
     .quiz-head h1 { font-size:clamp(2rem,6vw,4rem); letter-spacing:-.08em; line-height:.96; margin:.45rem 0; }
     .quiz-head p, .quiz-muted { color:var(--muted); font-weight:760; line-height:1.6; }
-    .quiz-grid { display:grid; grid-template-columns:.85fr 1.15fr; gap:1rem; align-items:start; }
+    .quiz-grid { display:grid; grid-template-columns:.72fr 1.08fr .82fr; gap:1rem; align-items:start; }
     .quiz-panel { border:1px solid var(--border); border-radius:24px; background:rgba(255,255,255,.045); padding:1rem; }
     .quiz-form { display:grid; gap:.75rem; margin-top:.85rem; }
     .quiz-form label { display:grid; gap:.35rem; color:var(--muted); font-weight:950; font-size:.84rem; }
@@ -146,12 +194,111 @@
     .quiz-progress { display:grid; gap:.55rem; margin-top:.8rem; }
     .quiz-progress-row { display:grid; grid-template-columns:36px 1fr auto; gap:.75rem; align-items:center; border:1px solid rgba(255,255,255,.07); border-radius:15px; padding:.7rem; background:rgba(255,255,255,.035); }
     .quiz-progress-row span:first-child { color:var(--cyan); font-weight:950; }
-    @media (max-width:860px){ .quiz-grid{grid-template-columns:1fr;} .quiz-top{align-items:flex-start;flex-direction:column;} .quiz-row{align-items:flex-start;flex-direction:column;} }
+    .quiz-editor-panel { min-width:0; }
+    .question-sidebar { position:sticky; top:1rem; }
+    .question-mini-list { display:grid; gap:.7rem; margin-top:.85rem; }
+    .question-mini-card {
+        width:100%;
+        border:1px solid rgba(255,255,255,.07);
+        border-radius:18px;
+        background:rgba(255,255,255,.035);
+        color:var(--text);
+        padding:.9rem;
+        text-align:left;
+        cursor:pointer;
+        transition:.2s ease;
+    }
+    .question-mini-card:hover,
+    .question-mini-card.active {
+        border-color:rgba(102,232,247,.35);
+        background:rgba(102,232,247,.08);
+        transform:translateY(-2px);
+    }
+    .question-mini-card b { display:block; color:var(--cyan); font-size:.78rem; letter-spacing:.08em; margin-bottom:.35rem; }
+    .question-mini-card span { display:block; color:var(--text); font-weight:850; line-height:1.45; }
+    .editor-mode {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:.75rem;
+        border:1px solid rgba(255,255,255,.07);
+        background:rgba(255,255,255,.035);
+        padding:.7rem;
+        border-radius:16px;
+    }
+    .editor-mode span { color:var(--cyan); font-weight:950; letter-spacing:.08em; text-transform:uppercase; font-size:.78rem; }
+    .editor-mode button { width:auto; padding:.55rem .75rem; background:rgba(255,255,255,.08); color:var(--text); }
+    @media (max-width:1080px){ .quiz-grid{grid-template-columns:1fr;} .question-sidebar{position:static;} .quiz-top{align-items:flex-start;flex-direction:column;} .quiz-row{align-items:flex-start;flex-direction:column;} }
 </style>
 @endpush
 
 @push('scripts')
 <script>
+(() => {
+    const form = document.getElementById('quizQuestionForm');
+    if (!form) return;
+
+    const questions = @json($questionEditorData);
+    const modeLabel = document.getElementById('editorModeLabel');
+    const saveButton = document.getElementById('saveQuestionButton');
+    const newButton = document.getElementById('newQuestionButton');
+    const questionText = form.querySelector('[data-question-text]');
+    const secondsLimit = form.querySelector('[data-seconds-limit]');
+    const correctOption = form.querySelector('[data-correct-option]');
+    const optionInputs = [...form.querySelectorAll('[data-option-text]')];
+    const fileInputs = [...form.querySelectorAll('input[type="file"]')];
+    const editButtons = [...document.querySelectorAll('[data-edit-question]')];
+
+    function clearFiles() {
+        fileInputs.forEach((input) => input.value = '');
+    }
+
+    function setActiveButton(questionId = null) {
+        editButtons.forEach((button) => {
+            button.classList.toggle('active', questionId && Number(button.dataset.editQuestion) === Number(questionId));
+        });
+    }
+
+    function resetForm() {
+        form.action = form.dataset.createUrl;
+        questionText.value = '';
+        secondsLimit.value = 20;
+        correctOption.value = 0;
+        optionInputs.forEach((input) => input.value = '');
+        clearFiles();
+        modeLabel.textContent = 'Soal Baru';
+        saveButton.textContent = 'Simpan Soal';
+        setActiveButton(null);
+        questionText.focus();
+    }
+
+    function loadQuestion(questionId) {
+        const question = questions.find((item) => Number(item.id) === Number(questionId));
+        if (!question) return;
+
+        form.action = question.update_url;
+        questionText.value = question.question_text || '';
+        secondsLimit.value = question.seconds_limit || 20;
+        optionInputs.forEach((input, index) => {
+            input.value = question.options?.[index]?.answer_text || '';
+        });
+
+        const correctIndex = question.options?.findIndex((option) => option.is_correct) ?? 0;
+        correctOption.value = correctIndex >= 0 ? correctIndex : 0;
+        clearFiles();
+        modeLabel.textContent = `Edit SOAL ${question.order}`;
+        saveButton.textContent = 'Simpan Perubahan Soal';
+        setActiveButton(question.id);
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    editButtons.forEach((button) => {
+        button.addEventListener('click', () => loadQuestion(button.dataset.editQuestion));
+    });
+
+    newButton?.addEventListener('click', resetForm);
+})();
+
 (() => {
     const root = document.querySelector('.quiz-page');
     const buttons = document.querySelectorAll('.quiz-answer-btn');

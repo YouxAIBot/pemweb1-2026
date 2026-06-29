@@ -203,7 +203,72 @@ class QuizRoomController extends Controller
             }
         });
 
-        return back()->with('learning_success', 'Soal berhasil ditambahkan.');
+        return back()->with('learning_success', 'Soal berhasil disimpan.');
+    }
+
+    public function updateQuestion(Request $request, QuizRoom $room, QuizRoomQuestion $question): RedirectResponse
+    {
+        abort_unless($room->isOwner($request->user()), 403);
+        abort_unless((int) $question->quiz_room_id === (int) $room->id, 404);
+
+        if ($room->status !== 'draft') {
+            return back()->with('learning_error', 'Soal hanya bisa diubah sebelum room dimulai.');
+        }
+
+        $data = $request->validate([
+            'question_text' => ['required', 'string', 'max:1000'],
+            'question_image' => ['nullable', 'image', 'max:3072'],
+            'seconds_limit' => ['nullable', 'integer', 'min:5', 'max:120'],
+            'options' => ['required', 'array', 'min:2'],
+            'options.*.answer_text' => ['nullable', 'string', 'max:500'],
+            'options.*.image' => ['nullable', 'image', 'max:3072'],
+            'correct_option' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $options = $data['options'];
+        $correctIndex = (int) $data['correct_option'];
+
+        if (! array_key_exists($correctIndex, $options)) {
+            return back()->withErrors(['correct_option' => 'Pilih jawaban benar yang tersedia.'])->withInput();
+        }
+
+        DB::transaction(function () use ($request, $question, $data, $options, $correctIndex) {
+            $question->update([
+                'question_text' => $data['question_text'],
+                'image_path' => $request->hasFile('question_image')
+                    ? $request->file('question_image')->store('quiz-room/questions', 'public')
+                    : $question->image_path,
+                'seconds_limit' => $data['seconds_limit'] ?? 20,
+            ]);
+
+            foreach ($options as $index => $option) {
+                $existing = $question->options()->where('sort_order', $index + 1)->first();
+
+                $answerText = $option['answer_text'] ?? null;
+                $hasNewImage = $request->hasFile("options.$index.image");
+                $imagePath = $hasNewImage
+                    ? $request->file("options.$index.image")->store('quiz-room/options', 'public')
+                    : $existing?->image_path;
+
+                if (! filled($answerText) && ! $imagePath) {
+                    if ($existing) {
+                        $existing->delete();
+                    }
+                    continue;
+                }
+
+                QuizRoomOption::updateOrCreate([
+                    'quiz_room_question_id' => $question->id,
+                    'sort_order' => $index + 1,
+                ], [
+                    'answer_text' => $answerText,
+                    'image_path' => $imagePath,
+                    'is_correct' => $index === $correctIndex,
+                ]);
+            }
+        });
+
+        return back()->with('learning_success', 'Soal berhasil diperbarui.');
     }
 
     public function start(Request $request, QuizRoom $room): RedirectResponse
