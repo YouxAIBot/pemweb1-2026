@@ -129,6 +129,7 @@ class QuizRoomController extends Controller
 
         $currentQuestion = $room->questions->first(fn ($question) => ! $answers->has($question->id));
         $progress = $this->progress($room);
+        $questionEditorData = $this->questionEditorData($room);
 
         return view('frontend.learning.quiz.room', [
             'setting' => $this->setting(),
@@ -138,6 +139,7 @@ class QuizRoomController extends Controller
             'answers' => $answers,
             'currentQuestion' => $currentQuestion,
             'progress' => $progress,
+            'questionEditorData' => $questionEditorData,
         ]);
     }
 
@@ -203,7 +205,7 @@ class QuizRoomController extends Controller
             }
         });
 
-        return back()->with('learning_success', 'Soal berhasil disimpan.');
+        return redirect()->route('learning.quiz.room', $room)->with('learning_success', 'Soal berhasil disimpan.');
     }
 
     public function updateQuestion(Request $request, QuizRoom $room, QuizRoomQuestion $question): RedirectResponse
@@ -268,7 +270,7 @@ class QuizRoomController extends Controller
             }
         });
 
-        return back()->with('learning_success', 'Soal berhasil diperbarui.');
+        return redirect()->route('learning.quiz.room', $room)->with('learning_success', 'Soal berhasil diperbarui.');
     }
 
     public function start(Request $request, QuizRoom $room): RedirectResponse
@@ -285,7 +287,7 @@ class QuizRoomController extends Controller
             'started_at' => now(),
         ]);
 
-        return back()->with('learning_success', 'Quiz dimulai. Bagikan kode room ke peserta.');
+        return redirect()->route('learning.quiz.room', $room)->with('learning_success', 'Quiz dimulai. Bagikan kode room ke peserta.');
     }
 
     public function finish(Request $request, QuizRoom $room): RedirectResponse
@@ -305,7 +307,7 @@ class QuizRoomController extends Controller
             'finished_at' => now(),
         ]);
 
-        return back()->with('learning_success', 'Quiz selesai. History pertandingan sudah tersimpan.');
+        return redirect()->route('learning.quiz.room', $room)->with('learning_success', 'Quiz selesai. History pertandingan sudah tersimpan.');
     }
 
     public function answer(Request $request, QuizRoom $room): JsonResponse
@@ -408,6 +410,31 @@ class QuizRoomController extends Controller
         } while (QuizRoom::where('code', $code)->exists());
 
         return $code;
+    }
+
+    private function questionEditorData(QuizRoom $room)
+    {
+        $room->loadMissing('questions.options');
+
+        return $room->questions->map(function (QuizRoomQuestion $question) use ($room) {
+            return [
+                'id' => $question->id,
+                'order' => $question->question_order,
+                'question_text' => $question->question_text,
+                'seconds_limit' => $question->seconds_limit,
+                'update_url' => route('learning.quiz.questions.update', [$room, $question]),
+                'options' => collect(range(1, 4))->map(function (int $order) use ($question) {
+                    $option = $question->options->firstWhere('sort_order', $order);
+
+                    return [
+                        'answer_text' => $option?->answer_text ?? '',
+                        'image_path' => $option?->image_path,
+                        'is_correct' => (bool) $option?->is_correct,
+                        'sort_order' => $order,
+                    ];
+                })->values(),
+            ];
+        })->values();
     }
 
     private function setting(): DashboardSetting

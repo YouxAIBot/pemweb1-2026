@@ -1,32 +1,10 @@
 @extends('layouts.learning')
 
+@section('title', ($room->title ?? 'Quiz Room') . ' - Quiz Room')
+
 @section('content')
 @php
-    $room = $room ?? request()->route('room');
-
-    if (is_numeric($room)) {
-        $room = \App\Models\QuizRoom::with(['questions.options', 'language', 'owner'])->findOrFail($room);
-    }
-
-    $questionEditorData = $room->questions->map(function ($question) {
-        return [
-            'id' => $question->id,
-            'order' => $question->question_order,
-            'question_text' => $question->question_text,
-            'seconds_limit' => $question->seconds_limit,
-            'update_url' => route('learning.quiz.questions.update', [$room, $question]),
-            'options' => collect(range(1, 4))->map(function ($order) use ($question) {
-                $option = $question->options->firstWhere('sort_order', $order);
-
-                return [
-                    'answer_text' => $option?->answer_text ?? '',
-                    'image_path' => $option?->image_path,
-                    'is_correct' => (bool) $option?->is_correct,
-                    'sort_order' => $order,
-                ];
-            })->values(),
-        ];
-    })->values();
+    $questionEditorData = collect($questionEditorData ?? []);
 @endphp
 
 <div class="quiz-page" data-answer-url="{{ route('api.quiz.answer', $room) }}" data-state-url="{{ route('api.quiz.state', $room) }}" data-csrf="{{ csrf_token() }}">
@@ -100,8 +78,51 @@
                     @if ($room->status === 'draft')
                         <p class="quiz-muted">Menunggu owner menambahkan soal dan memulai quiz.</p>
                     @elseif ($room->status === 'finished')
-                        <h2>Quiz selesai</h2>
-                        <p class="quiz-muted">History pertandingan sudah tersimpan. Lihat posisi akhir di progress skor.</p>
+                        <section class="quiz-finish-stage" data-finish-stage data-progress='@json($progress)'>
+                            <div class="quiz-finish-intro" data-finish-intro>
+                                <p class="quiz-finish-kicker">Final Result</p>
+                                <h2 class="quiz-finish-text" data-finish-text>Quiz selesai</h2>
+                                <p class="quiz-muted">Menyiapkan pengumuman pemenang...</p>
+                            </div>
+
+                            <div class="quiz-podium-wrap" data-podium-wrap hidden>
+                                <div class="quiz-podium">
+                                    <article class="podium-card podium-second" data-podium-second>
+                                        <span class="podium-rank">#2</span>
+                                        <h3 class="podium-name">-</h3>
+                                        <p class="podium-meta">0 pts • 0 benar</p>
+                                    </article>
+                                    <article class="podium-card podium-first" data-podium-first>
+                                        <span class="podium-rank">#1 Champion</span>
+                                        <h3 class="podium-name">-</h3>
+                                        <p class="podium-meta">0 pts • 0 benar</p>
+                                    </article>
+                                    <article class="podium-card podium-third" data-podium-third>
+                                        <span class="podium-rank">#3</span>
+                                        <h3 class="podium-name">-</h3>
+                                        <p class="podium-meta">0 pts • 0 benar</p>
+                                    </article>
+                                </div>
+
+                                <div class="quiz-rest-list" data-rest-list>
+                                    <h3>Posisi lainnya</h3>
+                                    <div class="quiz-rest-items">
+                                        @forelse (collect($progress)->slice(3) as $row)
+                                            <div class="quiz-progress-row">
+                                                <span>#{{ $row['position'] ?? ($loop->iteration + 3) }}</span>
+                                                <div>
+                                                    <b>{{ $row['name'] }}</b>
+                                                    <em>{{ $row['correct_count'] ?? 0 }} benar</em>
+                                                </div>
+                                                <em>{{ $row['score'] ?? 0 }} pts</em>
+                                            </div>
+                                        @empty
+                                            <p class="quiz-muted">Tidak ada peserta lain di bawah podium.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     @elseif ($currentQuestion)
                         <article class="quiz-question" data-question-id="{{ $currentQuestion->id }}" data-start-at="{{ now()->timestamp }}" data-limit="{{ $currentQuestion->seconds_limit }}">
                             <p class="quiz-muted">Soal {{ $currentQuestion->question_order }} dari {{ $room->questions->count() }}</p>
@@ -228,7 +249,25 @@
     }
     .editor-mode span { color:var(--cyan); font-weight:950; letter-spacing:.08em; text-transform:uppercase; font-size:.78rem; }
     .editor-mode button { width:auto; padding:.55rem .75rem; background:rgba(255,255,255,.08); color:var(--text); }
-    @media (max-width:1080px){ .quiz-grid{grid-template-columns:1fr;} .question-sidebar{position:static;} .quiz-top{align-items:flex-start;flex-direction:column;} .quiz-row{align-items:flex-start;flex-direction:column;} }
+
+    .quiz-finish-stage { display:grid; gap:1rem; }
+    .quiz-finish-intro { min-height:320px; display:grid; place-items:center; text-align:center; border:1px solid rgba(255,255,255,.07); border-radius:24px; background:linear-gradient(180deg, rgba(102,232,247,.06), rgba(255,255,255,.03)); padding:1.5rem; }
+    .quiz-finish-kicker { color:var(--cyan); font-weight:950; letter-spacing:.16em; text-transform:uppercase; margin:0 0 .45rem; }
+    .quiz-finish-text { margin:0; font-size:clamp(2rem,5vw,4.1rem); line-height:1; letter-spacing:-.06em; opacity:0; transform:translateY(14px) scale(.98); transition:opacity .45s ease, transform .45s ease; }
+    .quiz-finish-text.show { opacity:1; transform:translateY(0) scale(1); }
+    .quiz-podium-wrap { display:grid; gap:1.15rem; }
+    .quiz-podium { display:grid; grid-template-columns:1fr 1.15fr 1fr; gap:1rem; align-items:end; }
+    .podium-card { border:1px solid rgba(255,255,255,.08); border-radius:24px; background:rgba(255,255,255,.045); padding:1rem; text-align:center; box-shadow:var(--shadow); }
+    .podium-first { min-height:260px; background:linear-gradient(180deg, rgba(111,118,255,.16), rgba(255,255,255,.05)); }
+    .podium-second { min-height:220px; background:linear-gradient(180deg, rgba(102,232,247,.11), rgba(255,255,255,.04)); }
+    .podium-third { min-height:180px; background:linear-gradient(180deg, rgba(255,210,122,.12), rgba(255,255,255,.04)); }
+    .podium-rank { display:block; color:var(--cyan); font-weight:950; letter-spacing:.08em; text-transform:uppercase; margin-bottom:.9rem; }
+    .podium-name { margin:0; font-size:clamp(1.15rem,2.8vw,1.8rem); line-height:1.1; }
+    .podium-meta { margin:.55rem 0 0; color:var(--muted); font-weight:850; }
+    .quiz-rest-list { border:1px solid rgba(255,255,255,.07); border-radius:22px; background:rgba(255,255,255,.035); padding:1rem; }
+    .quiz-rest-list h3 { margin:0 0 .75rem; font-size:1.05rem; }
+    .quiz-rest-items { display:grid; gap:.7rem; }
+    @media (max-width:1080px){ .quiz-grid{grid-template-columns:1fr;} .question-sidebar{position:static;} .quiz-top{align-items:flex-start;flex-direction:column;} .quiz-row{align-items:flex-start;flex-direction:column;} .quiz-podium{grid-template-columns:1fr;} .podium-first,.podium-second,.podium-third{min-height:auto;} }
 </style>
 @endpush
 
@@ -348,5 +387,63 @@
         }
     }));
 })();
+
+
+(() => {
+    const stage = document.querySelector('[data-finish-stage]');
+    if (!stage) return;
+
+    const textEl = stage.querySelector('[data-finish-text]');
+    const intro = stage.querySelector('[data-finish-intro]');
+    const podiumWrap = stage.querySelector('[data-podium-wrap]');
+    const progress = JSON.parse(stage.dataset.progress || '[]');
+
+    const first = progress[0] || { name: 'Belum ada juara', score: 0, correct_count: 0 };
+    const second = progress[1] || { name: 'Belum ada peserta', score: 0, correct_count: 0 };
+    const third = progress[2] || { name: 'Belum ada peserta', score: 0, correct_count: 0 };
+
+    const setPodium = (selector, row) => {
+        const card = stage.querySelector(selector);
+        if (!card) return;
+        const name = card.querySelector('.podium-name');
+        const meta = card.querySelector('.podium-meta');
+        if (name) name.textContent = row.name || '-';
+        if (meta) meta.textContent = `${row.score || 0} pts • ${row.correct_count || 0} benar`;
+    };
+
+    setPodium('[data-podium-first]', first);
+    setPodium('[data-podium-second]', second);
+    setPodium('[data-podium-third]', third);
+
+    const sequence = [
+        'WHO\'S IN 3RD POSITION?',
+        (third.name || 'NO STUDENT').toUpperCase(),
+        'A MYSTERIOUS STUDENT',
+        (second.name || 'NO STUDENT').toUpperCase(),
+        'AND NOW',
+        'THERE IS OUR KING',
+        (first.name || 'NO CHAMPION').toUpperCase(),
+    ];
+
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const runSequence = async () => {
+        for (const line of sequence) {
+            textEl.classList.remove('show');
+            await sleep(220);
+            textEl.textContent = line;
+            textEl.classList.add('show');
+            await sleep(1350);
+            textEl.classList.remove('show');
+            await sleep(360);
+        }
+
+        intro.hidden = true;
+        podiumWrap.hidden = false;
+    };
+
+    runSequence();
+})();
+
 </script>
 @endpush
