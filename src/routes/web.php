@@ -7,6 +7,8 @@ use App\Http\Controllers\Frontend\HomeController;
 use App\Http\Controllers\Frontend\AuthController;
 use App\Http\Controllers\Frontend\LearningDashboardController;
 use App\Http\Controllers\Frontend\DuelController;
+use App\Http\Controllers\Frontend\QuizRoomController;
+use App\Http\Controllers\Frontend\UserProfileController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -48,6 +50,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/onboarding', [LearningDashboardController::class, 'onboarding'])->name('learning.onboarding');
     Route::post('/onboarding', [LearningDashboardController::class, 'storeOnboarding'])->name('learning.onboarding.store');
     Route::get('/dashboard', [LearningDashboardController::class, 'dashboard'])->name('dashboard');
+    Route::post('/dashboard/switch-language', [LearningDashboardController::class, 'switchLanguage'])->name('learning.language.switch');
+    Route::get('/profile', [UserProfileController::class, 'edit'])->name('learning.profile.edit');
+    Route::post('/profile', [UserProfileController::class, 'update'])->name('learning.profile.update');
     Route::get('/games', fn () => redirect()->route('learning.games'));
     Route::get('/turnamen', [LearningDashboardController::class, 'games'])->name('learning.games');
     Route::get('/tournament', fn () => redirect()->route('learning.tournament'));
@@ -60,6 +65,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/turnamen/duel/{duelSession}/answer', [DuelController::class, 'answer'])->name('api.duel.answer');
     Route::post('/api/turnamen/duel/{duelSession}/finish', [DuelController::class, 'finish'])->name('api.duel.finish');
     Route::get('/turnamen/duel/{duelSession}', [DuelController::class, 'room'])->name('learning.duel.room');
+    Route::get('/turnamen/quiz', [QuizRoomController::class, 'index'])->name('learning.quiz.index');
+    Route::post('/turnamen/quiz', [QuizRoomController::class, 'store'])->name('learning.quiz.store');
+    Route::post('/turnamen/quiz/join', [QuizRoomController::class, 'join'])->name('learning.quiz.join');
+    Route::get('/turnamen/quiz/{room}', [QuizRoomController::class, 'show'])->name('learning.quiz.room');
+    Route::post('/turnamen/quiz/{room}/questions', [QuizRoomController::class, 'addQuestion'])->name('learning.quiz.questions.store');
+    Route::post('/turnamen/quiz/{room}/start', [QuizRoomController::class, 'start'])->name('learning.quiz.start');
+    Route::post('/turnamen/quiz/{room}/finish', [QuizRoomController::class, 'finish'])->name('learning.quiz.finish');
+    Route::get('/api/turnamen/quiz/{room}/state', [QuizRoomController::class, 'state'])->name('api.quiz.state');
+    Route::post('/api/turnamen/quiz/{room}/answer', [QuizRoomController::class, 'answer'])->name('api.quiz.answer');
     Route::post('/turnamen/cepat', [LearningDashboardController::class, 'submitTournament'])->name('learning.tournament.submit');
     Route::get('/api/turnamen/modes', [LearningDashboardController::class, 'apiGameModes'])->name('api.tournament.modes');
     Route::get('/api/turnamen/leaderboard', [LearningDashboardController::class, 'apiTournamentLeaderboard'])->name('api.tournament.leaderboard');

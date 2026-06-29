@@ -30,9 +30,13 @@ class DuelController extends Controller
             return redirect()->route('learning.onboarding');
         }
 
-        $stats = DuelPlayerStat::firstOrCreate(['user_id' => $user->id]);
+        $stats = DuelPlayerStat::firstOrCreate([
+            'user_id' => $user->id,
+            'learning_language_id' => $profile->learning_language_id,
+        ]);
         $leaderboard = DuelPlayerStat::query()
             ->with('user:id,name,email')
+            ->where('learning_language_id', $profile->learning_language_id)
             ->orderByDesc('rating')
             ->orderByDesc('wins')
             ->take(12)
@@ -41,6 +45,7 @@ class DuelController extends Controller
         $history = DuelSession::query()
             ->with(['playerOne:id,name,email', 'playerTwo:id,name,email', 'winner:id,name', 'players'])
             ->where('status', 'finished')
+            ->where('learning_language_id', $profile->learning_language_id)
             ->where(function ($query) use ($user) {
                 $query->where('player_one_id', $user->id)
                     ->orWhere('player_two_id', $user->id);
@@ -450,7 +455,12 @@ class DuelController extends Controller
 
     private function applyStats(DuelPlayer $player, string $result): void
     {
-        $stats = DuelPlayerStat::firstOrCreate(['user_id' => $player->user_id]);
+        $languageId = DuelSession::query()->whereKey($player->duel_session_id)->value('learning_language_id');
+
+        $stats = DuelPlayerStat::firstOrCreate([
+            'user_id' => $player->user_id,
+            'learning_language_id' => $languageId,
+        ]);
 
         $rating = (int) $stats->rating;
         $rating += match ($result) {

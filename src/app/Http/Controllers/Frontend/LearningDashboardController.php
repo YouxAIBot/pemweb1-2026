@@ -9,6 +9,7 @@ use App\Models\GameMode;
 use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use App\Models\LearningPart;
+use App\Models\LearningQuestion;
 use App\Models\TournamentAttempt;
 use App\Models\User;
 use App\Models\UserLearningProfile;
@@ -35,19 +36,20 @@ class LearningDashboardController extends Controller
         ]);
     }
 
-    public function onboarding(Request $request): View|RedirectResponse
+    public function onboarding(Request $request): View
     {
         $user = $request->user();
         $profile = $user->learningProfile;
-
-        if ($profile?->onboarding_completed_at) {
-            return redirect()->route('dashboard');
-        }
+        $selectedLanguageIds = $this->selectedLanguageIds($profile);
 
         return view('frontend.learning.onboarding', [
             'setting' => $this->setting(),
             'languages' => $this->languages(),
             'abilityOptions' => $this->abilityOptions(),
+            'profile' => $profile,
+            'selectedLanguageIds' => $selectedLanguageIds,
+            'activeLanguageId' => $profile?->learning_language_id,
+            'isReturningUser' => (bool) $profile?->onboarding_completed_at,
         ]);
     }
 
@@ -61,47 +63,49 @@ class LearningDashboardController extends Controller
             'ability_level.required' => 'Pilih tingkat kemampuan terlebih dahulu.',
         ]);
 
+        $user = $request->user();
         $language = LearningLanguage::query()->active()->findOrFail($data['learning_language_id']);
-        $startMap = [
-            'beginner' => 1,
-            'intermediate' => 3,
-            'master' => 5,
-        ];
 
-        $targetIndex = $startMap[$data['ability_level']] ?? 1;
-        $part = $language->parts()->active()->orderBy('sort_order')->first();
-        $level = null;
-
-        if ($part) {
-            $level = $part->levels()
-                ->active()
-                ->orderBy('sort_order')
-                ->skip(max($targetIndex - 1, 0))
-                ->first()
-                ?? $part->levels()->active()->orderByDesc('sort_order')->first();
-        }
-
-        $profile = UserLearningProfile::updateOrCreate([
-            'user_id' => $request->user()->id,
+        $profile = UserLearningProfile::firstOrCreate([
+            'user_id' => $user->id,
         ], [
-            'learning_language_id' => $language->id,
-            'current_part_id' => $part?->id,
-            'current_level_id' => $level?->id,
-            'ability_level' => $data['ability_level'],
-            'start_level_number' => $targetIndex,
-            'start_part_number' => 1,
-            'onboarding_completed_at' => now(),
+            'settings' => [],
         ]);
 
-        if ($level) {
-            $this->syncProgressForUser($request->user()->id, $language, $level);
+        $alreadyHadLanguage = in_array($language->id, $this->selectedLanguageIds($profile), true);
+
+        if ($profile->learning_language_id) {
+            $this->storeCurrentLanguageSnapshot($profile);
         }
 
-        app(DailyMissionProgressService::class)->missionsForUser($request->user());
+        $resolvedState = $this->resolveLanguageState($user, $profile, $language, $data['ability_level']);
+
+        $profile->fill([
+            'learning_language_id' => $language->id,
+            'current_part_id' => $resolvedState['current_part_id'],
+            'current_level_id' => $resolvedState['current_level_id'],
+            'ability_level' => $resolvedState['ability_level'],
+            'start_level_number' => $resolvedState['start_level_number'],
+            'start_part_number' => $resolvedState['start_part_number'],
+            'total_xp' => $resolvedState['total_xp'],
+            'streak' => $resolvedState['streak'],
+            'onboarding_completed_at' => now(),
+            'settings' => $this->mergeLanguageSelectionSettings($profile, $language->id),
+        ])->save();
+
+        if ($profile->currentLevel && $profile->language) {
+            $this->syncProgressForUser($user->id, $profile->language, $profile->currentLevel);
+        }
+
+        app(DailyMissionProgressService::class)->missionsForUser($user);
+
+        $message = $alreadyHadLanguage
+            ? 'Bahasa aktif berhasil diganti ke ' . $language->name . '.'
+            : 'Bahasa ' . $language->name . ' berhasil ditambahkan.';
 
         return redirect()
             ->route('dashboard')
-            ->with('learning_success', 'Petualangan belajar berhasil disiapkan.');
+            ->with('learning_success', $message);
     }
 
     public function dashboard(Request $request): View|RedirectResponse
@@ -132,12 +136,71 @@ class LearningDashboardController extends Controller
             'setting' => $this->setting(),
             'profile' => $profile->refresh()->load(['language', 'currentPart', 'currentLevel']),
             'language' => $language,
+            'languages' => $this->languages(),
             'parts' => $parts,
             'progressByLevel' => $progressByLevel,
             'menus' => $this->menus(),
             'missions' => $this->missions($user),
             'friends' => $this->friends($user),
+            'selectedLanguageIds' => $this->selectedLanguageIds($profile),
         ]);
+    }
+
+    public function switchLanguage(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile;
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $data = $request->validate([
+            'learning_language_id' => ['required', 'exists:learning_languages,id'],
+        ], [
+            'learning_language_id.required' => 'Pilih bahasa terlebih dahulu.',
+        ]);
+
+        $language = LearningLanguage::query()->active()->findOrFail($data['learning_language_id']);
+        $selectedIds = $this->selectedLanguageIds($profile);
+
+        if (! in_array((int) $language->id, $selectedIds, true)) {
+            return redirect()
+                ->route('learning.onboarding')
+                ->with('learning_error', 'Bahasa ini belum ada di kursusmu. Tambahkan dulu dan pilih tingkat kemampuan.');
+        }
+
+        if ((int) $profile->learning_language_id === (int) $language->id) {
+            return redirect()->route('dashboard');
+        }
+
+        $this->storeCurrentLanguageSnapshot($profile);
+
+        $resolvedState = $this->resolveLanguageState(
+            $user,
+            $profile->refresh(),
+            $language,
+            $profile->ability_level ?? 'beginner'
+        );
+
+        $profile->fill([
+            'learning_language_id' => $language->id,
+            'current_part_id' => $resolvedState['current_part_id'],
+            'current_level_id' => $resolvedState['current_level_id'],
+            'ability_level' => $resolvedState['ability_level'],
+            'start_level_number' => $resolvedState['start_level_number'],
+            'start_part_number' => $resolvedState['start_part_number'],
+            'total_xp' => $resolvedState['total_xp'],
+            'streak' => $resolvedState['streak'],
+        ])->save();
+
+        if ($profile->currentLevel && $profile->language) {
+            $this->syncProgressForUser($user->id, $profile->language, $profile->currentLevel);
+        }
+
+        return redirect()
+            ->route('dashboard')
+            ->with('learning_success', 'Berpindah ke kursus ' . $language->name . '.');
     }
 
     public function showPart(Request $request, LearningPart $part): View|RedirectResponse
@@ -289,6 +352,8 @@ class LearningDashboardController extends Controller
                 'current_level_id' => $nextLevel?->id ?? $level->id,
             ])->save();
 
+            $this->storeCurrentLanguageSnapshot($profile->refresh());
+
             app(DailyMissionProgressService::class)->addProgress($user, 'questions_answered', $questionCount);
             app(DailyMissionProgressService::class)->addProgress($user, 'study_minutes', $studyMinutes);
             app(DailyMissionProgressService::class)->addProgress($user, 'levels_completed', 1);
@@ -298,8 +363,6 @@ class LearningDashboardController extends Controller
             ->route('learning.parts.show', $part)
             ->with('learning_success', $nextLevel ? 'Level selesai. Level berikutnya sudah terbuka.' : 'Level selesai. Semua level di bagian ini sudah kamu buka.');
     }
-
-
 
     public function games(Request $request): View|RedirectResponse
     {
@@ -312,6 +375,7 @@ class LearningDashboardController extends Controller
 
         $games = GameMode::query()
             ->active()
+            ->whereNotIn('key', ['video_question', 'daily_boss'])
             ->orderBy('sort_order')
             ->get();
 
@@ -319,39 +383,27 @@ class LearningDashboardController extends Controller
             $games = collect([
                 new GameMode([
                     'key' => 'tournament',
-                    'title' => 'Turnamen',
-                    'subtitle' => 'Challenge cepat',
-                    'description' => 'Jawab soal acak, kumpulkan skor, dan naik leaderboard.',
+                    'title' => 'Turnamen Cepat',
+                    'subtitle' => 'Challenge 5 soal',
+                    'description' => 'Jawab 5 soal acak, kumpulkan skor, dan naik leaderboard.',
                     'icon_label' => '⚡',
                     'route_name' => 'learning.tournament',
-                    'button_label' => 'Mulai Turnamen',
+                    'button_label' => 'Mulai',
                     'status' => 'active',
                     'is_active' => true,
                 ]),
             ]);
         }
 
-        $leaderboard = TournamentAttempt::query()
-            ->with('user')
-            ->where('learning_language_id', $profile->learning_language_id)
-            ->orderByDesc('score')
-            ->orderBy('duration_seconds')
-            ->latest()
-            ->take(5)
-            ->get();
-
         return view('frontend.learning.games', [
             'setting' => $this->setting(),
             'profile' => $profile,
             'games' => $games,
-            'leaderboard' => $leaderboard,
             'menus' => $this->menus(),
             'missions' => $this->missions($user),
             'friends' => $this->friends($user),
         ]);
     }
-
-
 
     public function apiGameModes(Request $request)
     {
@@ -360,6 +412,7 @@ class LearningDashboardController extends Controller
 
         $games = GameMode::query()
             ->active()
+            ->whereNotIn('key', ['video_question', 'daily_boss'])
             ->orderBy('sort_order')
             ->get()
             ->map(function (GameMode $game) {
@@ -412,7 +465,6 @@ class LearningDashboardController extends Controller
             'leaderboard' => $leaderboard,
         ]);
     }
-
 
     public function tournament(Request $request): View|RedirectResponse
     {
@@ -543,7 +595,6 @@ class LearningDashboardController extends Controller
                 'duration_seconds' => $attempt->duration_seconds,
             ]);
     }
-
 
     private function abilityOptions(): array
     {
@@ -726,5 +777,140 @@ class LearningDashboardController extends Controller
             ->active()
             ->orderBy('sort_order')
             ->first();
+    }
+
+    private function selectedLanguageIds(?UserLearningProfile $profile): array
+    {
+        if (! $profile) {
+            return [];
+        }
+
+        $ids = collect(data_get($profile->settings, 'enabled_languages', []))
+            ->merge([$profile->learning_language_id])
+            ->filter()
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $ids;
+    }
+
+    private function mergeLanguageSelectionSettings(UserLearningProfile $profile, int $languageId): array
+    {
+        $settings = $profile->settings ?? [];
+        $enabled = collect($settings['enabled_languages'] ?? [])
+            ->merge([$languageId])
+            ->filter()
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        $settings['enabled_languages'] = $enabled;
+
+        return $settings;
+    }
+
+    private function storeCurrentLanguageSnapshot(UserLearningProfile $profile): void
+    {
+        if (! $profile->learning_language_id) {
+            return;
+        }
+
+        $settings = $profile->settings ?? [];
+        $settings['language_profiles'] = $settings['language_profiles'] ?? [];
+        $settings['language_profiles'][(string) $profile->learning_language_id] = [
+            'current_part_id' => $profile->current_part_id,
+            'current_level_id' => $profile->current_level_id,
+            'ability_level' => $profile->ability_level,
+            'start_level_number' => $profile->start_level_number,
+            'start_part_number' => $profile->start_part_number,
+            'total_xp' => $profile->total_xp,
+            'streak' => $profile->streak,
+            'onboarding_completed_at' => $profile->onboarding_completed_at?->toISOString(),
+        ];
+
+        $profile->forceFill([
+            'settings' => $settings,
+        ])->save();
+    }
+
+    private function resolveLanguageState(User $user, UserLearningProfile $profile, LearningLanguage $language, string $abilityLevel): array
+    {
+        $snapshot = data_get($profile->settings, 'language_profiles.' . $language->id);
+
+        $part = null;
+        $level = null;
+
+        if ($snapshot) {
+            $part = LearningPart::query()
+                ->where('learning_language_id', $language->id)
+                ->whereKey($snapshot['current_part_id'] ?? null)
+                ->first();
+
+            $level = LearningLevel::query()
+                ->whereKey($snapshot['current_level_id'] ?? null)
+                ->whereHas('part', fn ($query) => $query->where('learning_language_id', $language->id))
+                ->first();
+
+            if (! $part && $level) {
+                $part = $level->part;
+            }
+        }
+
+        if (! $part || ! $level) {
+            $startMap = [
+                'beginner' => 1,
+                'intermediate' => 3,
+                'master' => 5,
+            ];
+
+            $targetIndex = $snapshot['start_level_number'] ?? ($startMap[$abilityLevel] ?? 1);
+            $part = $language->parts()->active()->orderBy('sort_order')->first();
+
+            if ($part) {
+                $level = $part->levels()
+                    ->active()
+                    ->orderBy('sort_order')
+                    ->skip(max($targetIndex - 1, 0))
+                    ->first()
+                    ?? $part->levels()->active()->orderByDesc('sort_order')->first();
+            }
+
+            $existingCompleted = UserLevelProgress::query()
+                ->where('user_id', $user->id)
+                ->whereHas('level.part', fn ($query) => $query->where('learning_language_id', $language->id))
+                ->where('status', 'completed')
+                ->with('level')
+                ->get()
+                ->sortByDesc(fn ($progress) => $progress->level?->sort_order ?? 0)
+                ->first();
+
+            if ($existingCompleted?->level) {
+                $level = $this->nextLevelAfter($existingCompleted->level) ?? $existingCompleted->level;
+                $part = $level->part;
+            }
+
+            return [
+                'current_part_id' => $part?->id,
+                'current_level_id' => $level?->id,
+                'ability_level' => $snapshot['ability_level'] ?? $abilityLevel,
+                'start_level_number' => $targetIndex,
+                'start_part_number' => $snapshot['start_part_number'] ?? 1,
+                'total_xp' => (int) ($snapshot['total_xp'] ?? 0),
+                'streak' => (int) ($snapshot['streak'] ?? 0),
+            ];
+        }
+
+        return [
+            'current_part_id' => $part?->id,
+            'current_level_id' => $level?->id,
+            'ability_level' => $snapshot['ability_level'] ?? $abilityLevel,
+            'start_level_number' => (int) ($snapshot['start_level_number'] ?? 1),
+            'start_part_number' => (int) ($snapshot['start_part_number'] ?? 1),
+            'total_xp' => (int) ($snapshot['total_xp'] ?? 0),
+            'streak' => (int) ($snapshot['streak'] ?? 0),
+        ];
     }
 }

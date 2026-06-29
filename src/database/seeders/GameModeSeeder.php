@@ -38,9 +38,9 @@ class GameModeSeeder extends Seeder
                 'subtitle' => 'Mode seperti Kahoot',
                 'description' => 'Buat room, tampilkan PIN, lalu peserta menjawab soal bersama.',
                 'icon_label' => '🎯',
-                'route_name' => null,
-                'button_label' => 'Segera Hadir',
-                'status' => 'coming_soon',
+                'route_name' => 'learning.quiz.index',
+                'button_label' => 'Buka Room',
+                'status' => 'active',
                 'sort_order' => 3,
             ],
             [
@@ -53,6 +53,7 @@ class GameModeSeeder extends Seeder
                 'button_label' => 'Segera Hadir',
                 'status' => 'coming_soon',
                 'sort_order' => 4,
+                'is_active' => false,
             ],
             [
                 'key' => 'daily_boss',
@@ -64,6 +65,7 @@ class GameModeSeeder extends Seeder
                 'button_label' => 'Segera Hadir',
                 'status' => 'coming_soon',
                 'sort_order' => 5,
+                'is_active' => false,
             ],
         ];
 
@@ -71,7 +73,7 @@ class GameModeSeeder extends Seeder
             GameMode::updateOrCreate([
                 'key' => $game['key'],
             ], $game + [
-                'is_active' => true,
+                'is_active' => $game['is_active'] ?? true,
                 'settings' => [],
             ]);
         }

@@ -30,7 +30,7 @@
             <div class="duel-vs-center">
                 <span class="duel-lightning">⚡</span>
                 <strong>VS</strong>
-                <em data-countdown-text>Siap?</em>
+                <em data-countdown-text>Lawan ditemukan</em>
             </div>
 
             <div class="duel-profile-card right" data-player-card="1">
@@ -552,6 +552,9 @@
     const countdown = async () => {
         showScreen('vs');
         const text = document.querySelector('[data-countdown-text]');
+        text.textContent = 'Lawan ditemukan';
+        await new Promise(resolve => window.setTimeout(resolve, 2000));
+
         const steps = ['3', '2', '1', 'Mulai!'];
 
         for (const step of steps) {

@@ -3,68 +3,59 @@
 @section('title', 'Turnamen - YoLearning')
 
 @section('content')
-<div class="turnamen-choice-page">
-    <header class="turnamen-choice-top">
-        <a href="{{ route('dashboard') }}" class="brand-mini">
-            <span class="mark">Y</span>
-            <span>{{ $setting->brand_text }}</span>
-        </a>
-
-        <a href="{{ route('dashboard') }}" class="turnamen-back">Kembali</a>
+@php
+    $visuals = [
+        'tournament' => ['emoji' => '⚡', 'label' => 'Fast Battle', 'class' => 'visual-fast'],
+        'duel_1v1' => ['emoji' => '⚔', 'label' => '1v1 Match', 'class' => 'visual-duel'],
+        'kahoot_quiz' => ['emoji' => '🎯', 'label' => 'Quiz Room', 'class' => 'visual-quiz'],
+    ];
+@endphp
+<div class="simple-page">
+    <header class="simple-topbar">
+        <a href="{{ route('dashboard') }}" class="simple-back">← Dashboard</a>
+        <div class="simple-brand"><span>{{ $setting->brand_initial ?? 'Y' }}</span><b>{{ $setting->brand_text ?? 'YoLearning' }}</b></div>
     </header>
 
-    <main class="turnamen-choice-card" data-modes-api="{{ route('api.tournament.modes') }}" data-leaderboard-api="{{ route('api.tournament.leaderboard') }}">
-        <section class="onboarding-head turnamen-choice-head">
-            <span>Tournament Center</span>
+    <main class="simple-shell">
+        <section class="simple-head">
+            <small>{{ $profile->language?->name ?? 'Bahasa aktif' }}</small>
             <h1>Pilih Mode Turnamen</h1>
-            <p>Mode turnamen diatur dari admin panel. Aktifkan, urutkan, atau tambah mode baru lewat GAME CMS.</p>
+            <p>Desain dibuat lebih simpel, fokus, dan nyaman. Mode pada halaman ini otomatis mengikuti bahasa aktif yang kamu pilih di dashboard.</p>
         </section>
 
-        <section class="language-grid turnamen-mode-grid" data-game-modes-list>
+        <section class="simple-mode-grid">
             @forelse ($games as $game)
                 @php
                     $playable = $game->isPlayable() && Route::has($game->route_name);
                     $href = $playable ? route($game->route_name) : '#';
+                    $visual = $visuals[$game->key] ?? ['emoji' => $game->icon_label ?: '•', 'label' => 'Mode', 'class' => 'visual-default'];
                 @endphp
-
-                <a href="{{ $href }}" class="language-option turnamen-mode-option {{ $playable ? 'is-playable' : 'is-disabled' }}" style="--i: {{ $loop->index }}">
-                    <span class="flag-chip">{{ $game->icon_label ?: '•' }}</span>
-                    <small>{{ $game->status === 'active' ? 'Aktif' : 'Segera Hadir' }}</small>
-                    <b>{{ $game->title }}</b>
-                    <p>{{ $game->subtitle ?: $game->description }}</p>
-                    <span class="turnamen-mode-action">
-                        {{ $playable ? $game->button_label : ($game->button_label ?: 'Segera Hadir') }}
-                    </span>
+                <a href="{{ $href }}" class="mode-showcase-card {{ $playable ? '' : 'is-disabled' }}">
+                    <div class="mode-visual {{ $visual['class'] }}">
+                        <span>{{ $visual['emoji'] }}</span>
+                        <small>{{ $visual['label'] }}</small>
+                    </div>
+                    <div class="mode-content">
+                        <div>
+                            <small>{{ $game->status === 'active' ? 'Aktif' : 'Segera hadir' }}</small>
+                            <h2>{{ $game->title }}</h2>
+                            <p>{{ $game->description ?: $game->subtitle }}</p>
+                        </div>
+                        <em>{{ $playable ? ($game->button_label ?: 'Mulai') : 'Segera Hadir' }}</em>
+                    </div>
                 </a>
             @empty
-                <article class="language-option turnamen-mode-option">
-                    <small>Belum ada mode</small>
-                    <b>Turnamen belum disiapkan</b>
-                    <p>Admin bisa menambahkan mode dari GAME CMS → Game Modes.</p>
+                <article class="mode-showcase-card">
+                    <div class="mode-visual visual-default"><span>⚡</span><small>Mode</small></div>
+                    <div class="mode-content">
+                        <div>
+                            <small>Kosong</small>
+                            <h2>Belum ada mode</h2>
+                            <p>Admin bisa menambahkan mode dari GAME CMS.</p>
+                        </div>
+                    </div>
                 </article>
             @endforelse
-        </section>
-
-        <section class="turnamen-leaderboard">
-            <div class="turnamen-leaderboard-head">
-                <div>
-                    <small>Leaderboard</small>
-                    <h3>Top Turnamen</h3>
-                </div>
-                <span>{{ $profile->language?->name ?? 'Bahasa' }}</span>
-            </div>
-
-            <div class="turnamen-rank-list" data-tournament-leaderboard>
-                @forelse ($leaderboard as $attempt)
-                    <div class="turnamen-rank-row">
-                        <span>{{ $loop->iteration }}</span>
-                        <strong>{{ $attempt->user?->name ?? 'User' }}</strong>
-                        <em>{{ $attempt->score }}%</em>
-                    </div>
-                @empty
-                    <p class="turnamen-muted">Belum ada skor turnamen.</p>
-                @endforelse
-            </div>
         </section>
     </main>
 </div>
@@ -72,227 +63,35 @@
 
 @push('styles')
 <style>
-    html,
-    body {
-        min-height: 100%;
-        overflow-y: auto;
-    }
-
-    .turnamen-choice-page {
-        min-height: 100vh;
-        padding: 1rem;
-        background:
-            radial-gradient(circle at 20% 10%, rgba(102, 232, 247, 0.12), transparent 24rem),
-            radial-gradient(circle at 80% 10%, rgba(110, 124, 247, 0.14), transparent 28rem),
-            #080d18;
-    }
-
-    .turnamen-choice-top {
-        width: min(1080px, 100%);
-        margin: 0 auto 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-
-    .turnamen-choice-top .brand-mini {
-        margin: 0;
-    }
-
-    .turnamen-back,
-    .turnamen-choice-top button {
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.055);
-        color: var(--text);
-        padding: 0.68rem 0.95rem;
-        font-weight: 950;
-        cursor: pointer;
-    }
-
-    .turnamen-choice-card {
-        width: min(1080px, 100%);
-        margin: 0 auto 3rem;
-        border: 1px solid var(--border);
-        border-radius: 34px;
-        background: linear-gradient(145deg, rgba(27, 35, 49, 0.86), rgba(12, 17, 30, 0.8));
-        box-shadow: var(--shadow);
-        padding: clamp(1.2rem, 4vw, 3rem);
-        animation: dashIn 0.65s ease both;
-    }
-
-    .turnamen-choice-head {
-        margin-bottom: 1.6rem;
-    }
-
-    .turnamen-mode-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .turnamen-mode-option {
-        min-height: 178px;
-    }
-
-    .turnamen-mode-option.is-disabled {
-        opacity: 0.58;
-        cursor: not-allowed;
-    }
-
-    .turnamen-mode-action {
-        position: relative;
-        z-index: 1;
-        display: inline-flex;
-        width: fit-content;
-        margin-top: 0.85rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        color: #eafcff;
-        padding: 0.55rem 0.75rem;
-        font-size: 0.82rem;
-        font-weight: 950;
-    }
-
-    .turnamen-mode-option.is-playable .turnamen-mode-action {
-        background: linear-gradient(135deg, var(--cyan), var(--primary));
-        color: #07101f;
-    }
-
-    .turnamen-leaderboard {
-        margin-top: 1.2rem;
-        padding-top: 1.2rem;
-        border-top: 1px solid var(--border);
-    }
-
-    .turnamen-leaderboard-head {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 0.7rem;
-    }
-
-    .turnamen-leaderboard-head small {
-        color: var(--cyan);
-        font-size: 0.76rem;
-        font-weight: 950;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-    }
-
-    .turnamen-leaderboard-head h3 {
-        margin-top: 0.25rem;
-        font-size: 1.45rem;
-        letter-spacing: -0.05em;
-    }
-
-    .turnamen-leaderboard-head span,
-    .turnamen-muted {
-        color: var(--muted);
-        font-weight: 850;
-    }
-
-    .turnamen-rank-list {
-        display: grid;
-        gap: 0.25rem;
-    }
-
-    .turnamen-rank-row {
-        display: grid;
-        grid-template-columns: 34px minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .turnamen-rank-row span {
-        color: var(--cyan);
-        font-weight: 950;
-    }
-
-    .turnamen-rank-row em {
-        font-style: normal;
-        font-weight: 950;
-    }
-
-    @media (max-width: 760px) {
-        .turnamen-choice-top,
-        .turnamen-leaderboard-head {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .turnamen-mode-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+    html, body { min-height: 100%; overflow-y: auto; }
+    .simple-page { min-height: 100vh; padding: 1rem; background: #080d18; }
+    .simple-topbar, .simple-shell { width: min(1120px, 100%); margin-inline: auto; }
+    .simple-topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .simple-back, .simple-brand { display: inline-flex; align-items: center; gap: .65rem; border: 1px solid var(--border); border-radius: 999px; background: rgba(255,255,255,.055); padding: .72rem 1rem; font-weight: 950; }
+    .simple-brand span { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 999px; background: linear-gradient(135deg, var(--cyan), var(--primary)); color: #07101f; }
+    .simple-shell { border: 1px solid var(--border); border-radius: 30px; background: rgba(18, 24, 38, .82); box-shadow: var(--shadow); padding: clamp(1rem, 4vw, 2rem); }
+    .simple-head { max-width: 760px; margin-bottom: 1.2rem; }
+    .simple-head small, .mode-content small { color: var(--cyan); font-weight: 950; letter-spacing: .13em; text-transform: uppercase; font-size: .74rem; }
+    .simple-head h1 { margin-top: .45rem; font-size: clamp(2rem, 6vw, 4rem); letter-spacing: -.08em; line-height: .96; }
+    .simple-head p, .mode-content p { color: var(--muted); font-weight: 750; line-height: 1.6; }
+    .simple-mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .mode-showcase-card { display:grid; gap:.95rem; border: 1px solid var(--border); border-radius: 26px; background: rgba(255,255,255,.045); padding: 1rem; transition: .2s ease; }
+    .mode-showcase-card:hover { transform: translateY(-4px); border-color: rgba(102,232,247,.32); background: rgba(102,232,247,.06); }
+    .mode-showcase-card.is-disabled { opacity: .55; cursor: not-allowed; }
+    .mode-visual { min-height: 185px; border-radius: 22px; padding: 1rem; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; position:relative; border:1px solid rgba(255,255,255,.08); }
+    .mode-visual::after, .mode-visual::before { content:""; position:absolute; border-radius:999px; filter:blur(4px); }
+    .mode-visual::before { width:130px; height:130px; right:-20px; top:-20px; background:rgba(255,255,255,.12); }
+    .mode-visual::after { width:110px; height:110px; left:-20px; bottom:-35px; background:rgba(255,255,255,.08); }
+    .mode-visual span { position:relative; z-index:1; font-size:2.6rem; width:72px; height:72px; border-radius:24px; display:grid; place-items:center; background:rgba(10,15,24,.3); border:1px solid rgba(255,255,255,.12); }
+    .mode-visual small { position:relative; z-index:1; font-size:1.05rem; letter-spacing:-.03em; text-transform:none; color:#fff; }
+    .visual-fast { background:linear-gradient(135deg, rgba(0,117,255,.28), rgba(15,20,38,.3) 45%, rgba(76,0,255,.35)); }
+    .visual-duel { background:linear-gradient(135deg, rgba(255,114,32,.22), rgba(15,20,38,.3) 45%, rgba(255,60,120,.28)); }
+    .visual-quiz { background:linear-gradient(135deg, rgba(52,211,153,.22), rgba(15,20,38,.3) 45%, rgba(6,182,212,.28)); }
+    .visual-default { background:linear-gradient(135deg, rgba(102,232,247,.18), rgba(17,24,39,.35)); }
+    .mode-content { display:flex; flex-direction:column; justify-content:space-between; gap:1rem; min-height:170px; }
+    .mode-content h2 { margin:.3rem 0 .45rem; font-size:1.5rem; letter-spacing:-.05em; }
+    .mode-content em { display:inline-flex; align-self:flex-start; border-radius:999px; background: linear-gradient(135deg, var(--cyan), var(--primary)); color: #07101f; padding: .65rem .95rem; font-weight: 950; font-style: normal; }
+    @media (max-width: 980px) { .simple-mode-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .simple-topbar { align-items: flex-start; flex-direction: column; } }
 </style>
-@endpush
-
-@push('scripts')
-<script>
-    (() => {
-        const wrap = document.querySelector('[data-modes-api]');
-
-        if (!wrap) {
-            return;
-        }
-
-        const modesApi = wrap.dataset.modesApi;
-        const leaderboardApi = wrap.dataset.leaderboardApi;
-        const gameList = document.querySelector('[data-game-modes-list]');
-        const rankList = document.querySelector('[data-tournament-leaderboard]');
-
-        const escapeHtml = (value) => String(value || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-
-        if (modesApi && gameList) {
-            fetch(modesApi, { headers: { 'Accept': 'application/json' } })
-                .then((response) => response.ok ? response.json() : null)
-                .then((payload) => {
-                    if (!payload || !Array.isArray(payload.games) || payload.games.length === 0) {
-                        return;
-                    }
-
-                    gameList.innerHTML = payload.games.map((game, index) => {
-                        const playable = Boolean(game.playable && game.url);
-                        return `
-                            <a href="${playable ? game.url : '#'}" class="language-option turnamen-mode-option ${playable ? 'is-playable' : 'is-disabled'}" style="--i:${index}">
-                                <span class="flag-chip">${escapeHtml(game.icon_label || '•')}</span>
-                                <small>${game.status === 'active' ? 'Aktif' : 'Segera Hadir'}</small>
-                                <b>${escapeHtml(game.title)}</b>
-                                <p>${escapeHtml(game.subtitle || game.description || '')}</p>
-                                <span class="turnamen-mode-action">${escapeHtml(playable ? game.button_label : (game.button_label || 'Segera Hadir'))}</span>
-                            </a>
-                        `;
-                    }).join('');
-                })
-                .catch(() => {});
-        }
-
-        if (leaderboardApi && rankList) {
-            fetch(leaderboardApi, { headers: { 'Accept': 'application/json' } })
-                .then((response) => response.ok ? response.json() : null)
-                .then((payload) => {
-                    if (!payload || !Array.isArray(payload.leaderboard) || payload.leaderboard.length === 0) {
-                        return;
-                    }
-
-                    rankList.innerHTML = payload.leaderboard.map((row, index) => `
-                        <div class="turnamen-rank-row">
-                            <span>${index + 1}</span>
-                            <strong>${escapeHtml(row.name)}</strong>
-                            <em>${row.score}%</em>
-                        </div>
-                    `).join('');
-                })
-                .catch(() => {});
-        }
-    })();
-</script>
 @endpush

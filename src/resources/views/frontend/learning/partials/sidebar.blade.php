@@ -4,13 +4,19 @@
         <span>{{ $setting->brand_text }}</span>
     </a>
 
-    <div class="profile-tile">
-        <div class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
+    <a href="{{ route('learning.profile.edit') }}" class="profile-tile profile-tile-link">
+        <div class="avatar">
+            @if (auth()->user()->avatar_url)
+                <img src="{{ asset('storage/' . auth()->user()->avatar_url) }}" alt="Avatar user">
+            @else
+                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+            @endif
+        </div>
         <div>
             <h3>{{ auth()->user()->name }}</h3>
-            <p>“Hari yang cerah”</p>
+            <p>Edit Profiles ✎</p>
         </div>
-    </div>
+    </a>
 
     <div class="panel-title">Friend (Active)</div>
     <div class="friend-list">

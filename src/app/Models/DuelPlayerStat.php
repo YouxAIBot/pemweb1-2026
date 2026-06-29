@@ -11,6 +11,7 @@ class DuelPlayerStat extends Model
 
     protected $fillable = [
         'user_id',
+        'learning_language_id',
         'rating',
         'rank_label',
         'matches',
@@ -24,6 +25,11 @@ class DuelPlayerStat extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function language()
+    {
+        return $this->belongsTo(LearningLanguage::class, 'learning_language_id');
     }
 
     public static function rankFromRating(int $rating): string
