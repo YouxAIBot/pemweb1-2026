@@ -27,3 +27,5 @@ class UserSeeder extends Seeder
         $user->assignRole('user');
     }
 }
+
+#wow
