@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\LearningPartResource\Pages;
+use App\Models\LearningLanguage;
 use App\Models\LearningPart;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -73,7 +74,13 @@ class LearningPartResource extends Resource
             Tables\Columns\TextColumn::make('levels_count')->counts('levels')->label('Levels'),
             Tables\Columns\IconColumn::make('is_active')->boolean(),
             Tables\Columns\TextColumn::make('sort_order')->sortable(),
-        ])->actions([
+        ])
+        ->filters([
+            Tables\Filters\SelectFilter::make('learning_language_id')
+                ->label('Language')
+                ->options(fn () => LearningLanguage::query()->orderBy('name')->pluck('name', 'id')),
+        ])
+        ->actions([
             Tables\Actions\EditAction::make(),
             Tables\Actions\DeleteAction::make(),
         ])->bulkActions([

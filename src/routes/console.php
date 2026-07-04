@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -31,3 +32,5 @@ Artisan::command('yolearning:fresh {--force}', function () {
 
     $this->info('Database YoLearning berhasil di-reset.');
 })->purpose('Reset database YoLearning and reseed default data');
+
+Schedule::command('premium:expire')->hourly();

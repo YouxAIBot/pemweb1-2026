@@ -13,6 +13,7 @@ class TournamentAttempt extends Model
     protected $fillable = [
         'user_id',
         'learning_language_id',
+        'mode',
         'score',
         'correct_count',
         'total_questions',

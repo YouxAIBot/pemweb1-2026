@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\LearningQuestionResource\Pages;
+use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use App\Models\LearningQuestion;
 use Filament\Forms;
@@ -11,6 +12,7 @@ use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class LearningQuestionResource extends Resource
 {
@@ -116,6 +118,7 @@ class LearningQuestionResource extends Resource
                 static::listeningSection(),
                 static::wordMatchSection(),
                 static::realCaseSection(),
+                static::videoQuestionSection(),
                 static::mixedSection(),
 
                 Forms\Components\Section::make('Pembahasan')
@@ -386,6 +389,67 @@ class LearningQuestionResource extends Resource
             ->columns(2);
     }
 
+    private static function videoQuestionSection(): Forms\Components\Section
+    {
+        return Forms\Components\Section::make('Pembuat Video Question')
+            ->description('Gunakan bagian ini untuk membuat soal berbasis video. User menonton video lalu menjawab pertanyaan.')
+            ->visible(fn (Get $get): bool => $get('type') === 'video_question')
+            ->schema([
+                Forms\Components\TextInput::make('instruction')
+                    ->label('Instruksi')
+                    ->maxLength(255)
+                    ->default('Tonton video, lalu pilih jawaban yang paling tepat.'),
+
+                Forms\Components\FileUpload::make('settings.video_path')
+                    ->label('Upload Video')
+                    ->acceptedFileTypes([
+                        'video/mp4',
+                        'video/webm',
+                        'video/ogg',
+                        'video/quicktime',
+                        'video/x-m4v',
+                    ])
+                    ->maxSize(20480)
+                    ->directory('learning/videos/questions')
+                    ->helperText('Maksimal 20MB. Format yang disarankan: MP4/WebM.')
+                    ->columnSpanFull(),
+
+                Forms\Components\TextInput::make('settings.video_url')
+                    ->label('Video URL')
+                    ->url()
+                    ->maxLength(500)
+                    ->placeholder('https://www.youtube.com/watch?v=... atau https://.../video.mp4')
+                    ->helperText('Bisa direct video URL atau YouTube URL. Sistem akan menampilkan embed untuk YouTube.')
+                    ->columnSpanFull(),
+
+                Forms\Components\TextInput::make('settings.must_watch_seconds')
+                    ->label('Minimal Tonton')
+                    ->numeric()
+                    ->suffix('detik')
+                    ->default(5)
+                    ->minValue(0)
+                    ->maxValue(120),
+
+                Forms\Components\Textarea::make('settings.video_transcript')
+                    ->label('Transkrip / Catatan Video')
+                    ->rows(3)
+                    ->columnSpanFull()
+                    ->helperText('Opsional. Bisa dipakai sebagai catatan admin atau bantuan pembelajaran.'),
+
+                Forms\Components\Textarea::make('question_text')
+                    ->label('Pertanyaan Setelah Video')
+                    ->required(fn (Get $get): bool => $get('type') === 'video_question')
+                    ->rows(4)
+                    ->columnSpanFull(),
+
+                static::optionsRepeater(
+                    minItems: 2,
+                    helperText: 'Tandai jawaban benar untuk pertanyaan video.'
+                ),
+            ])
+            ->columns(2);
+    }
+
     private static function mixedSection(): Forms\Components\Section
     {
         return Forms\Components\Section::make('Pembuat Soal Mix')
@@ -524,6 +588,13 @@ class LearningQuestionResource extends Resource
                 Tables\Filters\SelectFilter::make('type')
                     ->label('Jenis Soal')
                     ->options(LearningLevel::TYPES),
+
+                Tables\Filters\SelectFilter::make('learning_language_id')
+                    ->label('Language')
+                    ->options(fn () => LearningLanguage::query()->orderBy('name')->pluck('name', 'id'))
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['value'] ?? null, fn (Builder $query, $languageId) => $query
+                            ->whereHas('level.part', fn (Builder $query) => $query->where('learning_language_id', $languageId)))),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Status Aktif'),

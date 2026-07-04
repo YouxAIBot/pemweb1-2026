@@ -3,12 +3,14 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\LearningLevelResource\Pages;
+use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class LearningLevelResource extends Resource
 {
@@ -60,6 +62,10 @@ class LearningLevelResource extends Resource
                 Forms\Components\TextInput::make('sort_order')->numeric()->default(0),
                 Forms\Components\TextInput::make('xp_reward')->numeric()->default(10),
                 Forms\Components\TextInput::make('passing_score')->numeric()->default(70),
+                Forms\Components\Toggle::make('is_premium')
+                    ->label('Level Premium')
+                    ->helperText('Jika aktif, hanya user premium yang bisa membuka level ini.')
+                    ->default(false),
                 Forms\Components\TextInput::make('position_x')->numeric()->minValue(5)->maxValue(95)->default(50)->helperText('Posisi node map 5-95.'),
                 Forms\Components\TextInput::make('position_y')->numeric()->minValue(10)->maxValue(92)->default(50)->helperText('Posisi node map 10-92.'),
                 Forms\Components\Toggle::make('is_active')->default(true),
@@ -75,9 +81,19 @@ class LearningLevelResource extends Resource
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->weight('bold'),
             Tables\Columns\TextColumn::make('type')->label('Mode')->badge()->formatStateUsing(fn ($state) => LearningLevel::TYPES[$state] ?? $state)->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\TextColumn::make('questions_count')->counts('questions')->label('Questions'),
+            Tables\Columns\IconColumn::make('is_premium')->label('Premium')->boolean(),
             Tables\Columns\IconColumn::make('is_active')->boolean(),
             Tables\Columns\TextColumn::make('sort_order')->sortable(),
-        ])->actions([
+        ])
+        ->filters([
+            Tables\Filters\SelectFilter::make('learning_language_id')
+                ->label('Language')
+                ->options(fn () => LearningLanguage::query()->orderBy('name')->pluck('name', 'id'))
+                ->query(fn (Builder $query, array $data): Builder => $query
+                    ->when($data['value'] ?? null, fn (Builder $query, $languageId) => $query
+                        ->whereHas('part', fn (Builder $query) => $query->where('learning_language_id', $languageId)))),
+        ])
+        ->actions([
             Tables\Actions\EditAction::make(),
             Tables\Actions\DeleteAction::make(),
         ])->bulkActions([

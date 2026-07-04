@@ -14,6 +14,7 @@
             <small>Quiz Room / Kahoot</small>
             <h1>Room Quiz Simpel</h1>
             <p>Mode ini tidak memakai leaderboard global. Skor hanya berlaku di dalam room dan history pertandingan tetap tersimpan.</p>
+            <a href="{{ route('learning.quiz.history') }}" class="quiz-history-link">Lihat Riwayat Quiz</a>
         </section>
 
         @if (session('learning_success')) <div class="quiz-alert">{{ session('learning_success') }}</div> @endif
@@ -91,6 +92,7 @@
     .quiz-head small, .quiz-panel small { color:var(--cyan); font-weight:950; letter-spacing:.13em; text-transform:uppercase; font-size:.74rem; }
     .quiz-head h1 { font-size:clamp(2rem,6vw,4rem); letter-spacing:-.08em; line-height:.96; margin:.45rem 0; }
     .quiz-head p, .quiz-muted { color:var(--muted); font-weight:760; line-height:1.6; }
+    .quiz-history-link { display:inline-flex; margin-top:.9rem; border-radius:999px; background:linear-gradient(135deg,var(--cyan),var(--primary)); color:#07101f; padding:.72rem 1rem; font-weight:950; }
     .quiz-grid { display:grid; grid-template-columns:.85fr 1.15fr; gap:1rem; align-items:start; }
     .quiz-panel { border:1px solid var(--border); border-radius:24px; background:rgba(255,255,255,.045); padding:1rem; }
     .quiz-form { display:grid; gap:.75rem; margin-top:.85rem; }

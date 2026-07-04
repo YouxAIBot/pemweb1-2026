@@ -10,9 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmemcached-dev iputils-ping telnet netcat-openbsd \
     libmcrypt-dev libreadline-dev libgmp-dev libzip-dev \
     libpq-dev libjpeg-dev libpng-dev libfreetype6-dev \
-    libssl-dev openssh-server libmagickwand-dev git cron \
+    libssl-dev openssh-server libmagickwand-dev git cron python3-pip \
     nano libxml2-dev nodejs npm && \
     rm -rf /var/lib/apt/lists/*
+
+# Free local TTS for listening audio generation in the admin API tools.
+RUN python3 -m pip install --break-system-packages edge-tts
 
 # Install PHP extensions
 RUN docker-php-ext-install soap exif pcntl intl gmp zip pdo_mysql pdo_pgsql bcmath gd && \

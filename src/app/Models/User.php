@@ -71,9 +71,38 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         return $this->hasMany(UserLevelProgress::class);
     }
 
+    public function questionProgress()
+    {
+        return $this->hasMany(UserQuestionProgress::class);
+    }
+
     public function dailyMissionProgress()
     {
         return $this->hasMany(UserDailyMissionProgress::class);
+    }
+
+    public function premiumPayments()
+    {
+        return $this->hasMany(PremiumPayment::class);
+    }
+
+    public function premiums()
+    {
+        return $this->hasMany(UserPremium::class);
+    }
+
+    public function activePremium()
+    {
+        return $this->hasOne(UserPremium::class)->active()->latestOfMany('ends_at');
+    }
+
+    public function isPremium(): bool
+    {
+        if ($this->relationLoaded('activePremium')) {
+            return (bool) $this->activePremium;
+        }
+
+        return $this->activePremium()->exists();
     }
 
 
@@ -84,7 +113,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
 
     public function duelStats()
     {
-        return $this->hasOne(DuelPlayerStat::class);
+        return $this->hasMany(DuelPlayerStat::class);
     }
 
     public function duelSessionsAsPlayerOne()

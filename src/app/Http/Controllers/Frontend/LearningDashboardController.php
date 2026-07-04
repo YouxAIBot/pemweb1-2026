@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
+use App\Models\Ad;
 use App\Models\DashboardMenu;
 use App\Models\DashboardSetting;
 use App\Models\GameMode;
+use App\Models\LanguageLetter;
 use App\Models\LearningLanguage;
 use App\Models\LearningLevel;
 use App\Models\LearningPart;
@@ -14,6 +16,7 @@ use App\Models\TournamentAttempt;
 use App\Models\User;
 use App\Models\UserLearningProfile;
 use App\Models\UserLevelProgress;
+use App\Models\UserQuestionProgress;
 use App\Services\DailyMissionProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -261,6 +264,12 @@ class LearningDashboardController extends Controller
                 ->with('learning_error', 'Selesaikan level sebelumnya terlebih dahulu.');
         }
 
+        if ($level->is_premium && ! $user->isPremium()) {
+            return redirect()
+                ->route('learning.premium')
+                ->with('learning_error', 'Level ini khusus premium. Upgrade premium untuk membuka akses tanpa iklan.');
+        }
+
         if ($progress->status === 'available') {
             $progress->update([
                 'status' => 'in_progress',
@@ -275,6 +284,9 @@ class LearningDashboardController extends Controller
             'part' => $part,
             'level' => $level,
             'levelProgress' => $progress->refresh(),
+            'shouldShowAds' => ! $user->isPremium(),
+            'entryAd' => $this->adForPlacement('level_entry'),
+            'exitAd' => $this->adForPlacement('level_exit'),
             'menus' => $this->menus(),
             'missions' => $this->missions($user),
             'friends' => $this->friends($user),
@@ -311,6 +323,7 @@ class LearningDashboardController extends Controller
             'study_seconds' => ['nullable', 'integer', 'min:0'],
             'correct_count' => ['nullable', 'integer', 'min:0'],
             'total_questions' => ['nullable', 'integer', 'min:1'],
+            'question_results' => ['nullable', 'string'],
         ]);
 
         $wasCompleted = $progress->status === 'completed';
@@ -359,6 +372,8 @@ class LearningDashboardController extends Controller
             app(DailyMissionProgressService::class)->addProgress($user, 'levels_completed', 1);
         }
 
+        $this->storeQuestionProgress($user->id, (string) ($data['question_results'] ?? ''));
+
         return redirect()
             ->route('learning.parts.show', $part)
             ->with('learning_success', $nextLevel ? 'Level selesai. Level berikutnya sudah terbuka.' : 'Level selesai. Semua level di bagian ini sudah kamu buka.');
@@ -375,7 +390,7 @@ class LearningDashboardController extends Controller
 
         $games = GameMode::query()
             ->active()
-            ->whereNotIn('key', ['video_question', 'daily_boss'])
+            ->whereNotIn('key', ['daily_boss'])
             ->orderBy('sort_order')
             ->get();
 
@@ -405,6 +420,35 @@ class LearningDashboardController extends Controller
         ]);
     }
 
+    public function letters(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile()->with('language')->first();
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $letters = LanguageLetter::query()
+            ->active()
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($letters->isEmpty()) {
+            $letters = collect($this->fallbackLettersFor($profile->language?->name ?? ''));
+        }
+
+        return view('frontend.learning.letters', [
+            'setting' => $this->setting(),
+            'profile' => $profile,
+            'letters' => $letters,
+            'menus' => $this->menus(),
+            'missions' => $this->missions($user),
+            'friends' => $this->friends($user),
+        ]);
+    }
+
     public function apiGameModes(Request $request)
     {
         $user = $request->user();
@@ -412,7 +456,7 @@ class LearningDashboardController extends Controller
 
         $games = GameMode::query()
             ->active()
-            ->whereNotIn('key', ['video_question', 'daily_boss'])
+            ->whereNotIn('key', ['daily_boss'])
             ->orderBy('sort_order')
             ->get()
             ->map(function (GameMode $game) {
@@ -446,6 +490,7 @@ class LearningDashboardController extends Controller
         $leaderboard = TournamentAttempt::query()
             ->with('user:id,name')
             ->when($languageId, fn ($query) => $query->where('learning_language_id', $languageId))
+            ->where('mode', 'tournament')
             ->orderByDesc('score')
             ->orderBy('duration_seconds')
             ->latest()
@@ -489,6 +534,7 @@ class LearningDashboardController extends Controller
         $leaderboard = TournamentAttempt::query()
             ->with('user')
             ->where('learning_language_id', $profile->learning_language_id)
+            ->where('mode', 'tournament')
             ->orderByDesc('score')
             ->orderBy('duration_seconds')
             ->latest()
@@ -498,6 +544,7 @@ class LearningDashboardController extends Controller
         $myBest = TournamentAttempt::query()
             ->where('user_id', $user->id)
             ->where('learning_language_id', $profile->learning_language_id)
+            ->where('mode', 'tournament')
             ->orderByDesc('score')
             ->orderBy('duration_seconds')
             ->first();
@@ -513,6 +560,138 @@ class LearningDashboardController extends Controller
             'friends' => $this->friends($user),
             'result' => session('tournament_result'),
         ]);
+    }
+
+    public function videoQuestion(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile()->with('language')->first();
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $questions = LearningQuestion::query()
+            ->active()
+            ->where('type', 'video_question')
+            ->whereHas('level.part', function ($query) use ($profile) {
+                $query->where('learning_language_id', $profile->learning_language_id);
+            })
+            ->whereHas('options')
+            ->with(['options' => fn ($query) => $query->orderBy('sort_order')])
+            ->inRandomOrder()
+            ->limit(5)
+            ->get();
+
+        $leaderboard = TournamentAttempt::query()
+            ->with('user:id,name')
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->where('mode', 'video_question')
+            ->orderByDesc('score')
+            ->orderBy('duration_seconds')
+            ->latest()
+            ->take(10)
+            ->get();
+
+        $myBest = TournamentAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->where('mode', 'video_question')
+            ->orderByDesc('score')
+            ->orderBy('duration_seconds')
+            ->first();
+
+        return view('frontend.learning.video-question', [
+            'setting' => $this->setting(),
+            'profile' => $profile,
+            'questions' => $questions,
+            'leaderboard' => $leaderboard,
+            'myBest' => $myBest,
+            'result' => session('video_question_result'),
+        ]);
+    }
+
+    public function submitVideoQuestion(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile;
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $data = $request->validate([
+            'question_ids' => ['required', 'array', 'min:1'],
+            'question_ids.*' => ['integer', 'exists:learning_questions,id'],
+            'answers' => ['nullable', 'array'],
+            'answers.*' => ['nullable', 'integer'],
+            'duration_seconds' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $questionIds = array_map('intval', $data['question_ids']);
+        $questions = LearningQuestion::query()
+            ->active()
+            ->where('type', 'video_question')
+            ->whereIn('id', $questionIds)
+            ->whereHas('level.part', function ($query) use ($profile) {
+                $query->where('learning_language_id', $profile->learning_language_id);
+            })
+            ->with('options')
+            ->get()
+            ->keyBy('id');
+
+        $correctCount = 0;
+        $answerLog = [];
+
+        foreach ($questionIds as $questionId) {
+            $question = $questions->get($questionId);
+
+            if (! $question) {
+                continue;
+            }
+
+            $selectedOptionId = (int) (($data['answers'][$questionId] ?? 0));
+            $correctOption = $question->options->firstWhere('is_correct', true);
+            $isCorrect = $correctOption && (int) $correctOption->id === $selectedOptionId;
+
+            if ($isCorrect) {
+                $correctCount += 1;
+            }
+
+            $answerLog[] = [
+                'question_id' => $question->id,
+                'selected_option_id' => $selectedOptionId ?: null,
+                'correct_option_id' => $correctOption?->id,
+                'is_correct' => (bool) $isCorrect,
+            ];
+        }
+
+        $totalQuestions = max($questions->count(), 1);
+        $score = (int) round(($correctCount / $totalQuestions) * 100);
+        $durationSeconds = max((int) ($data['duration_seconds'] ?? 0), 0);
+
+        $attempt = TournamentAttempt::create([
+            'user_id' => $user->id,
+            'learning_language_id' => $profile->learning_language_id,
+            'mode' => 'video_question',
+            'score' => $score,
+            'correct_count' => $correctCount,
+            'total_questions' => $totalQuestions,
+            'duration_seconds' => $durationSeconds,
+            'answers' => $answerLog,
+        ]);
+
+        app(DailyMissionProgressService::class)->addProgress($user, 'questions_answered', $totalQuestions);
+        app(DailyMissionProgressService::class)->addProgress($user, 'study_minutes', max(1, (int) ceil($durationSeconds / 60)));
+
+        return redirect()
+            ->route('learning.video-question')
+            ->with('video_question_result', [
+                'score' => $attempt->score,
+                'correct_count' => $attempt->correct_count,
+                'total_questions' => $attempt->total_questions,
+                'duration_seconds' => $attempt->duration_seconds,
+            ]);
     }
 
     public function submitTournament(Request $request): RedirectResponse
@@ -576,6 +755,7 @@ class LearningDashboardController extends Controller
         $attempt = TournamentAttempt::create([
             'user_id' => $user->id,
             'learning_language_id' => $profile->learning_language_id,
+            'mode' => 'tournament',
             'score' => $score,
             'correct_count' => $correctCount,
             'total_questions' => $totalQuestions,
@@ -603,6 +783,33 @@ class LearningDashboardController extends Controller
             'intermediate' => ['label' => 'Paham', 'description' => 'Langsung ke latihan bagian tengah.', 'target' => 'Level 1 • Bagian 3'],
             'master' => ['label' => 'Master', 'description' => 'Masuk ke tantangan lebih lanjut.', 'target' => 'Level 1 • Bagian 5'],
         ];
+    }
+
+    private function fallbackLettersFor(string $languageName): array
+    {
+        $name = str($languageName)->lower()->toString();
+
+        if (str_contains($name, 'mandarin') || str_contains($name, 'chinese')) {
+            return [
+                (object) ['symbol' => '你', 'reading' => 'ni', 'example_word' => '你好', 'example_translation' => 'halo', 'audio_url' => null, 'audio_path' => null],
+                (object) ['symbol' => '好', 'reading' => 'hao', 'example_word' => '很好', 'example_translation' => 'sangat baik', 'audio_url' => null, 'audio_path' => null],
+                (object) ['symbol' => '人', 'reading' => 'ren', 'example_word' => '中国人', 'example_translation' => 'orang China', 'audio_url' => null, 'audio_path' => null],
+                (object) ['symbol' => '口', 'reading' => 'kou', 'example_word' => '口语', 'example_translation' => 'bahasa lisan', 'audio_url' => null, 'audio_path' => null],
+                (object) ['symbol' => '日', 'reading' => 'ri', 'example_word' => '日子', 'example_translation' => 'hari', 'audio_url' => null, 'audio_path' => null],
+                (object) ['symbol' => '月', 'reading' => 'yue', 'example_word' => '月亮', 'example_translation' => 'bulan', 'audio_url' => null, 'audio_path' => null],
+            ];
+        }
+
+        return collect(range('A', 'Z'))
+            ->map(fn (string $letter) => (object) [
+                'symbol' => $letter,
+                'reading' => strtolower($letter),
+                'example_word' => null,
+                'example_translation' => null,
+                'audio_url' => null,
+                'audio_path' => null,
+            ])
+            ->all();
     }
 
     private function setting(): DashboardSetting
@@ -654,11 +861,11 @@ class LearningDashboardController extends Controller
 
         return collect([
             (object) ['label' => 'Bahasa', 'url' => route('dashboard'), 'icon_label' => '文'],
-            (object) ['label' => 'Huruf', 'url' => '#', 'icon_label' => 'Aa'],
-            (object) ['label' => 'Toko', 'url' => '#', 'icon_label' => '◈'],
+            (object) ['label' => 'Huruf', 'url' => route('learning.letters'), 'icon_label' => 'Aa'],
+            (object) ['label' => 'Toko', 'url' => route('learning.store'), 'icon_label' => '◈'],
             (object) ['label' => 'Misi', 'url' => '#', 'icon_label' => '✓'],
             (object) ['label' => 'Turnamen', 'url' => route('learning.games'), 'icon_label' => '⚡'],
-            (object) ['label' => 'Pengaturan', 'url' => '#', 'icon_label' => '⚙'],
+            (object) ['label' => 'Pengaturan', 'url' => route('learning.settings'), 'icon_label' => 'S'],
         ]);
     }
 
@@ -685,6 +892,52 @@ class LearningDashboardController extends Controller
                 ->get();
         } catch (\Throwable) {
             return collect();
+        }
+    }
+
+    private function adForPlacement(string $placement): ?Ad
+    {
+        try {
+            return Ad::query()
+                ->activeForPlacement($placement)
+                ->orderBy('sort_order')
+                ->inRandomOrder()
+                ->first();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function storeQuestionProgress(int $userId, string $payload): void
+    {
+        if (blank($payload)) {
+            return;
+        }
+
+        $items = json_decode($payload, true);
+
+        if (! is_array($items)) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            $questionId = (int) ($item['question_id'] ?? 0);
+
+            if ($questionId <= 0) {
+                continue;
+            }
+
+            $isCorrect = (bool) ($item['is_correct'] ?? false);
+
+            UserQuestionProgress::updateOrCreate([
+                'user_id' => $userId,
+                'learning_question_id' => $questionId,
+            ], [
+                'is_correct' => $isCorrect,
+                'selected_answer' => isset($item['selected_answer']) ? (string) $item['selected_answer'] : null,
+                'attempts' => max((int) ($item['attempts'] ?? 1), 1),
+                'answered_at' => now(),
+            ]);
         }
     }
 

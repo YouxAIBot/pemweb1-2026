@@ -46,4 +46,9 @@ class LearningQuestion extends Model
     {
         return $this->hasMany(LearningQuestionOption::class)->orderBy('sort_order');
     }
+
+    public function progress(): HasMany
+    {
+        return $this->hasMany(UserQuestionProgress::class, 'learning_question_id');
+    }
 }

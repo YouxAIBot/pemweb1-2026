@@ -8,6 +8,7 @@
         'tournament' => ['emoji' => '⚡', 'label' => 'Fast Battle', 'class' => 'visual-fast'],
         'duel_1v1' => ['emoji' => '⚔', 'label' => '1v1 Match', 'class' => 'visual-duel'],
         'kahoot_quiz' => ['emoji' => '🎯', 'label' => 'Quiz Room', 'class' => 'visual-quiz'],
+        'video_question' => ['emoji' => '▶', 'label' => 'Video Quiz', 'class' => 'visual-video'],
     ];
 @endphp
 <div class="simple-page">
@@ -87,6 +88,7 @@
     .visual-fast { background:linear-gradient(135deg, rgba(0,117,255,.28), rgba(15,20,38,.3) 45%, rgba(76,0,255,.35)); }
     .visual-duel { background:linear-gradient(135deg, rgba(255,114,32,.22), rgba(15,20,38,.3) 45%, rgba(255,60,120,.28)); }
     .visual-quiz { background:linear-gradient(135deg, rgba(52,211,153,.22), rgba(15,20,38,.3) 45%, rgba(6,182,212,.28)); }
+    .visual-video { background:linear-gradient(135deg, rgba(244,63,94,.2), rgba(15,20,38,.3) 45%, rgba(14,165,233,.28)); }
     .visual-default { background:linear-gradient(135deg, rgba(102,232,247,.18), rgba(17,24,39,.35)); }
     .mode-content { display:flex; flex-direction:column; justify-content:space-between; gap:1rem; min-height:170px; }
     .mode-content h2 { margin:.3rem 0 .45rem; font-size:1.5rem; letter-spacing:-.05em; }

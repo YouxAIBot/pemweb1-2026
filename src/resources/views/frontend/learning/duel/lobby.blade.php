@@ -42,6 +42,9 @@
                     <option value="easy">Easy Arena</option>
                     <option value="hard">Hard Arena</option>
                 </select>
+                <p class="duel-match-note">
+                    Match dicari untuk bahasa {{ $profile->language?->name ?? 'aktif' }} dan difficulty yang sama. Untuk test 2 akun, buka akun kedua di incognito atau browser lain.
+                </p>
 
                 <button type="submit" class="duel-primary-btn" data-find-button>
                     Cari Lawan
@@ -101,12 +104,12 @@
 
             <article class="duel-card">
                 <div class="duel-card-head">
-                    <div>
-                        <small>History</small>
-                        <h3>Match Terakhir</h3>
-                    </div>
-                    <span>{{ $history->count() }} match</span>
+                <div>
+                    <small>History</small>
+                    <h3>Match Terakhir</h3>
                 </div>
+                <a href="{{ route('learning.duel.history') }}">Lihat Semua</a>
+            </div>
 
                 <div class="duel-history-list">
                     @forelse ($history as $match)
@@ -323,6 +326,14 @@
         font-weight: 850;
     }
 
+    .duel-match-note {
+        margin: -.15rem 0 0;
+        color: var(--muted);
+        font-size: .78rem;
+        font-weight: 800;
+        line-height: 1.45;
+    }
+
     .duel-grid {
         display: grid;
         grid-template-columns: .78fr 1.1fr 1.1fr;
@@ -375,7 +386,8 @@
         letter-spacing: -.04em;
     }
 
-    .duel-card-head span {
+    .duel-card-head span,
+    .duel-card-head a {
         color: var(--muted);
         font-weight: 900;
         font-size: .85rem;
@@ -467,6 +479,12 @@
             },
             body: formData,
         });
+
+        if (!res.ok) {
+            statusEl.textContent = 'Matchmaking gagal diproses. Cek koneksi atau coba ulang.';
+            setWaiting(false);
+            return;
+        }
 
         const payload = await res.json();
 

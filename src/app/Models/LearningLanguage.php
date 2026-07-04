@@ -42,4 +42,25 @@ class LearningLanguage extends Model
     {
         return $this->hasMany(LearningPart::class)->orderBy('sort_order');
     }
+
+    public function letters(): HasMany
+    {
+        return $this->hasMany(LanguageLetter::class)->orderBy('sort_order');
+    }
+
+    public function levels()
+    {
+        return $this->hasManyThrough(
+            LearningLevel::class,
+            LearningPart::class,
+            'learning_language_id',
+            'learning_part_id'
+        )->orderBy('learning_levels.sort_order');
+    }
+
+    public function questions()
+    {
+        return LearningQuestion::query()
+            ->whereHas('level.part', fn ($query) => $query->where('learning_language_id', $this->id));
+    }
 }

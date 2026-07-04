@@ -14,8 +14,28 @@
         </div>
         <div>
             <h3>{{ auth()->user()->name }}</h3>
-            <p>Edit Profiles ✎</p>
+            <p>{{ auth()->user()->isPremium() ? 'Premium aktif' : 'Edit Profiles' }}</p>
         </div>
+    </a>
+
+    <a href="{{ route('learning.letters') }}" class="menu-item {{ request()->routeIs('learning.letters') ? 'active' : '' }}">
+        <span class="menu-icon">Aa</span>
+        <span>Huruf</span>
+    </a>
+
+    <a href="{{ route('learning.store') }}" class="menu-item {{ request()->routeIs('learning.store', 'learning.premium') ? 'active' : '' }}">
+        <span class="menu-icon">T</span>
+        <span>Toko Premium</span>
+    </a>
+
+    <a href="{{ route('learning.games') }}" class="menu-item {{ request()->routeIs('learning.games', 'learning.tournament', 'learning.duel.*', 'learning.quiz.*') ? 'active' : '' }}">
+        <span class="menu-icon">VS</span>
+        <span>Turnamen</span>
+    </a>
+
+    <a href="{{ route('learning.settings') }}" class="menu-item {{ request()->routeIs('learning.profile.*', 'learning.settings*') ? 'active' : '' }}">
+        <span class="menu-icon">S</span>
+        <span>Setting</span>
     </a>
 
     <div class="panel-title">Friend (Active)</div>

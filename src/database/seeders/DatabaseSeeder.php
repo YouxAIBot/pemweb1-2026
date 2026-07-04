@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             DashboardSeeder::class,
             GameModeSeeder::class,
             LearningCmsSeeder::class,
+            PremiumSeeder::class,
         ]);
     }
 }

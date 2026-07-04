@@ -30,10 +30,7 @@ class DuelController extends Controller
             return redirect()->route('learning.onboarding');
         }
 
-        $stats = DuelPlayerStat::firstOrCreate([
-            'user_id' => $user->id,
-            'learning_language_id' => $profile->learning_language_id,
-        ]);
+        $stats = $this->statsForUserLanguage($user->id, $profile->learning_language_id);
         $leaderboard = DuelPlayerStat::query()
             ->with('user:id,name,email')
             ->where('learning_language_id', $profile->learning_language_id)
@@ -63,10 +60,48 @@ class DuelController extends Controller
         ]);
     }
 
+    public function history(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile()->with('language')->first();
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $stats = $this->statsForUserLanguage($user->id, $profile->learning_language_id);
+        $leaderboard = DuelPlayerStat::query()
+            ->with('user:id,name,email')
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->orderByDesc('rating')
+            ->orderByDesc('wins')
+            ->take(25)
+            ->get();
+
+        $matches = DuelSession::query()
+            ->with(['playerOne:id,name,email', 'playerTwo:id,name,email', 'winner:id,name', 'players'])
+            ->where('status', 'finished')
+            ->where('learning_language_id', $profile->learning_language_id)
+            ->where(function ($query) use ($user) {
+                $query->where('player_one_id', $user->id)
+                    ->orWhere('player_two_id', $user->id);
+            })
+            ->latest('ended_at')
+            ->paginate(12);
+
+        return view('frontend.learning.duel.history', [
+            'setting' => $this->setting(),
+            'profile' => $profile,
+            'stats' => $stats,
+            'leaderboard' => $leaderboard,
+            'matches' => $matches,
+        ]);
+    }
+
     public function findMatch(Request $request, DuelQuestionGeneratorService $generator): JsonResponse
     {
         $user = $request->user();
-        $profile = $user->learningProfile;
+        $profile = $user->learningProfile()->with('language')->first();
 
         if (! $profile?->onboarding_completed_at) {
             return response()->json(['message' => 'Onboarding belum selesai.'], 422);
@@ -80,15 +115,51 @@ class DuelController extends Controller
         $languageId = $profile->learning_language_id;
 
         $session = DB::transaction(function () use ($user, $languageId, $difficulty, $generator) {
+            $matchedQueue = DuelMatchmakingQueue::query()
+                ->where('user_id', $user->id)
+                ->where('status', 'matched')
+                ->whereNotNull('duel_session_id')
+                ->latest()
+                ->lockForUpdate()
+                ->first();
+
+            if ($matchedQueue) {
+                $matchedSession = DuelSession::query()
+                    ->whereKey($matchedQueue->duel_session_id)
+                    ->where('status', '!=', 'finished')
+                    ->first();
+
+                if ($matchedSession) {
+                    return $matchedSession;
+                }
+            }
+
             DuelMatchmakingQueue::query()
                 ->where('status', 'waiting')
                 ->where('updated_at', '<', now()->subMinutes(2))
                 ->update(['status' => 'expired']);
 
-            DuelMatchmakingQueue::query()
+            $existingWaiting = DuelMatchmakingQueue::query()
                 ->where('user_id', $user->id)
                 ->where('status', 'waiting')
-                ->update(['status' => 'cancelled']);
+                ->latest()
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                $existingWaiting
+                && (int) $existingWaiting->learning_language_id === (int) $languageId
+                && $existingWaiting->difficulty === $difficulty
+                && $existingWaiting->updated_at?->gte(now()->subMinutes(2))
+            ) {
+                $existingWaiting->touch();
+
+                return null;
+            }
+
+            if ($existingWaiting) {
+                $existingWaiting->update(['status' => 'cancelled']);
+            }
 
             $opponentQueue = DuelMatchmakingQueue::query()
                 ->where('status', 'waiting')
@@ -165,6 +236,8 @@ class DuelController extends Controller
             return response()->json([
                 'status' => 'waiting',
                 'message' => 'Menunggu lawan...',
+                'language' => $profile->language?->name,
+                'difficulty' => $difficulty,
             ]);
         }
 
@@ -203,7 +276,11 @@ class DuelController extends Controller
 
         $queue->touch();
 
-        return response()->json(['status' => 'waiting']);
+        return response()->json([
+            'status' => 'waiting',
+            'language_id' => $queue->learning_language_id,
+            'difficulty' => $queue->difficulty,
+        ]);
     }
 
     public function cancelQueue(Request $request): JsonResponse
@@ -457,10 +534,7 @@ class DuelController extends Controller
     {
         $languageId = DuelSession::query()->whereKey($player->duel_session_id)->value('learning_language_id');
 
-        $stats = DuelPlayerStat::firstOrCreate([
-            'user_id' => $player->user_id,
-            'learning_language_id' => $languageId,
-        ]);
+        $stats = $this->statsForUserLanguage($player->user_id, $languageId);
 
         $rating = (int) $stats->rating;
         $rating += match ($result) {
@@ -480,6 +554,36 @@ class DuelController extends Controller
         $stats->total_score += (int) $player->score;
         $stats->best_score = max((int) $stats->best_score, (int) $player->score);
         $stats->save();
+    }
+
+    private function statsForUserLanguage(int $userId, ?int $languageId): DuelPlayerStat
+    {
+        if ($languageId) {
+            $stats = DuelPlayerStat::query()
+                ->where('user_id', $userId)
+                ->where('learning_language_id', $languageId)
+                ->first();
+
+            if ($stats) {
+                return $stats;
+            }
+
+            $legacyStats = DuelPlayerStat::query()
+                ->where('user_id', $userId)
+                ->whereNull('learning_language_id')
+                ->first();
+
+            if ($legacyStats) {
+                $legacyStats->update(['learning_language_id' => $languageId]);
+
+                return $legacyStats;
+            }
+        }
+
+        return DuelPlayerStat::firstOrCreate([
+            'user_id' => $userId,
+            'learning_language_id' => $languageId,
+        ]);
     }
 
     private function setting(): DashboardSetting

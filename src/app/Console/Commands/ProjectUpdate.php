@@ -25,7 +25,9 @@ class ProjectUpdate extends Command
      */
     public function handle()
     {
-        $this->call('migrate');
+        $this->call('migrate', [
+            '--force' => true,
+        ]);
         $this->call('shield:generate', [
             '--all' => true,
             '--panel' => 'admin',

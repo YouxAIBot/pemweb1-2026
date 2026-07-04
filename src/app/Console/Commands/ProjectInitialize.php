@@ -11,7 +11,7 @@ class ProjectInitialize extends Command
      *
      * @var string
      */
-    protected $signature = 'project:init';
+    protected $signature = 'project:init {--fresh : Reset database before initializing} {--seed : Seed default data after migrating}';
 
     /**
      * The console command description.
@@ -25,16 +25,27 @@ class ProjectInitialize extends Command
      */
     public function handle()
     {
-        $this->call('migrate:fresh', [
-            '--force' => true,
-        ]);
+        if ($this->option('fresh')) {
+            $this->warn('Reset database berjalan karena opsi --fresh dipakai.');
+            $this->call('migrate:fresh', [
+                '--force' => true,
+            ]);
+        } else {
+            $this->call('migrate', [
+                '--force' => true,
+            ]);
+        }
+
         $this->call('shield:generate', [
             '--all' => true,
             '--panel' => 'admin',
         ]);
-        $this->call('db:seed', [
-            '--force' => true,
-        ]);
+
+        if ($this->option('fresh') || $this->option('seed')) {
+            $this->call('db:seed', [
+                '--force' => true,
+            ]);
+        }
 
         $this->call('filament:optimize-clear');
         $this->call('optimize:clear');

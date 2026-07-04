@@ -25,6 +25,7 @@ class QuizRoom extends Model
     public function questions() { return $this->hasMany(QuizRoomQuestion::class)->orderBy('question_order'); }
     public function members() { return $this->hasMany(QuizRoomMember::class); }
     public function answers() { return $this->hasMany(QuizRoomAnswer::class); }
+    public function histories() { return $this->hasMany(QuizRoomHistory::class); }
 
     public function isOwner(User|int $user): bool
     {

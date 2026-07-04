@@ -63,6 +63,8 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('GAME CMS'),
                 NavigationGroup::make()
+                    ->label('MONETIZATION'),
+                NavigationGroup::make()
                     ->label('API INTEGRATION'),
                 NavigationGroup::make()
                     ->label('USER MANAGEMENT'),

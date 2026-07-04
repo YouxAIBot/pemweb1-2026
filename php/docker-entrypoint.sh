@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+PROJECT_NAME="${PROJECT_NAME:-yolearning}"
+
 echo "🚀 Starting Laravel container setup..."
 
 # Step 1: Create Laravel project if not already present
@@ -87,8 +89,16 @@ AWS_DEFAULT_REGION=us-east-1
 AWS_BUCKET=
 AWS_USE_PATH_STYLE_ENDPOINT=false
 
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+MIDTRANS_IS_PRODUCTION=false
+MIDTRANS_IS_SANITIZED=true
+MIDTRANS_IS_3DS=true
+
 VITE_APP_NAME="${APP_NAME}"
 EOF
+elif [ -f /var/www/html/.env ]; then
+  echo "📄 .env file already exists. Keeping current environment variables."
 else
   echo "📄 .env file already exists, overwriting with predefined environment variables..."
 
@@ -163,6 +173,12 @@ AWS_DEFAULT_REGION=us-east-1
 AWS_BUCKET=
 AWS_USE_PATH_STYLE_ENDPOINT=false
 
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+MIDTRANS_IS_PRODUCTION=false
+MIDTRANS_IS_SANITIZED=true
+MIDTRANS_IS_3DS=true
+
 VITE_APP_NAME="${APP_NAME}"
 EOF
 fi
@@ -212,13 +228,17 @@ chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 echo "🗃️ Running migrations..."
 php artisan migrate --force
 
-# Step 8: Run custom project init command
-echo "🚀 Running project:init..."
-php artisan project:init || true
+# Step 8: Run safe project update command
+echo "🚀 Running project:update..."
+php artisan project:update || true
 
 # Step 9: Create storage symbolic link
 echo "🔗 Creating storage link..."
-php artisan storage:link || true
+if [ ! -L /var/www/html/public/storage ]; then
+  php artisan storage:link || true
+else
+  echo "✅ Storage link already exists."
+fi
 
 # Step 10: Start cron
 echo "🕒 Starting cron service..."

@@ -15,6 +15,7 @@ class LearningLevel extends Model
         'multiple_choice' => 'Pilihan Ganda',
         'word_match' => 'Sambung Kata',
         'listening' => 'Listening',
+        'video_question' => 'Video Question',
         'real_case' => 'Soal Nyata',
         'mixed' => 'Mix',
     ];
@@ -29,6 +30,7 @@ class LearningLevel extends Model
         'sort_order',
         'xp_reward',
         'passing_score',
+        'is_premium',
         'position_x',
         'position_y',
         'is_active',
@@ -36,6 +38,7 @@ class LearningLevel extends Model
     ];
 
     protected $casts = [
+        'is_premium' => 'boolean',
         'is_active' => 'boolean',
         'settings' => 'array',
     ];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DashboardSetting;
 use App\Models\QuizRoom;
 use App\Models\QuizRoomAnswer;
+use App\Models\QuizRoomHistory;
 use App\Models\QuizRoomMember;
 use App\Models\QuizRoomOption;
 use App\Models\QuizRoomQuestion;
@@ -50,6 +51,45 @@ class QuizRoomController extends Controller
             'profile' => $profile,
             'myRooms' => $myRooms,
             'joinedRooms' => $joinedRooms,
+        ]);
+    }
+
+    public function history(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        $profile = $user->learningProfile()->with('language')->first();
+
+        if (! $profile?->onboarding_completed_at) {
+            return redirect()->route('learning.onboarding');
+        }
+
+        $histories = QuizRoomHistory::query()
+            ->with(['room.language'])
+            ->where('user_id', $user->id)
+            ->whereHas('room', fn ($query) => $query->where('learning_language_id', $profile->learning_language_id))
+            ->latest('played_at')
+            ->paginate(12);
+
+        $summaryQuery = QuizRoomHistory::query()
+            ->where('user_id', $user->id)
+            ->whereHas('room', fn ($query) => $query->where('learning_language_id', $profile->learning_language_id));
+
+        $summary = [
+            'rooms' => (clone $summaryQuery)->count(),
+            'total_score' => (clone $summaryQuery)
+                ->sum('final_score'),
+            'correct' => (clone $summaryQuery)
+                ->sum('correct_count'),
+            'best_position' => (clone $summaryQuery)
+                ->whereNotNull('final_position')
+                ->min('final_position'),
+        ];
+
+        return view('frontend.learning.quiz.history', [
+            'setting' => $this->setting(),
+            'profile' => $profile,
+            'histories' => $histories,
+            'summary' => $summary,
         ]);
     }
 
@@ -294,17 +334,33 @@ class QuizRoomController extends Controller
     {
         abort_unless($room->isOwner($request->user()), 403);
 
+        $finishedAt = now();
         $ranked = $room->members()->orderByDesc('score')->orderBy('updated_at')->get();
         foreach ($ranked as $index => $member) {
+            $position = $index + 1;
+
             $member->update([
-                'position' => $index + 1,
-                'finished_at' => $member->finished_at ?? now(),
+                'position' => $position,
+                'finished_at' => $member->finished_at ?? $finishedAt,
+            ]);
+
+            QuizRoomHistory::updateOrCreate([
+                'quiz_room_id' => $room->id,
+                'user_id' => $member->user_id,
+            ], [
+                'room_code' => $room->code,
+                'room_title' => $room->title,
+                'final_position' => $position,
+                'final_score' => (int) $member->score,
+                'correct_count' => (int) $member->correct_count,
+                'wrong_count' => (int) $member->wrong_count,
+                'played_at' => $finishedAt,
             ]);
         }
 
         $room->update([
             'status' => 'finished',
-            'finished_at' => now(),
+            'finished_at' => $finishedAt,
         ]);
 
         return redirect()->route('learning.quiz.room', $room)->with('learning_success', 'Quiz selesai. History pertandingan sudah tersimpan.');

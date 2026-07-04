@@ -131,6 +131,9 @@
                 'storySegments' => $storySegments,
                 'listeningFlow' => $listeningFlow,
                 'wordPairs' => $wordPairs,
+                'videoUrl' => learningAudioUrl($settings['video_path'] ?? null) ?: ($settings['video_url'] ?? null),
+                'videoTranscript' => $settings['video_transcript'] ?? null,
+                'mustWatchSeconds' => (int) ($settings['must_watch_seconds'] ?? 5),
             ],
             'options' => $question->options->map(function ($option) {
                 return [
@@ -143,6 +146,26 @@
             })->values(),
         ];
     })->values();
+
+    $adPayload = function (?App\Models\Ad $ad, string $placement) {
+        $defaultTitle = $placement === 'level_entry' ? 'Iklan sebelum level' : 'Iklan setelah level';
+        $defaultDescription = $placement === 'level_entry'
+            ? 'Tonton iklan singkat ini untuk membuka sesi latihan.'
+            : 'Tonton iklan singkat ini sebelum progress kamu disimpan.';
+
+        return [
+            'id' => $ad?->id,
+            'title' => $ad?->title ?? $defaultTitle,
+            'description' => $ad?->description ?? $defaultDescription,
+            'placement' => $placement,
+            'videoUrl' => $ad?->publicVideoUrl(),
+            'targetUrl' => $ad?->target_url,
+            'duration' => max((int) ($ad?->duration_seconds ?? 15), 15),
+        ];
+    };
+
+    $entryAdPayload = ($shouldShowAds ?? false) ? $adPayload($entryAd ?? null, 'level_entry') : null;
+    $exitAdPayload = ($shouldShowAds ?? false) ? $adPayload($exitAd ?? null, 'level_exit') : null;
 @endphp
 
 @section('content')
@@ -175,6 +198,10 @@
                     id="quizEngine"
                     data-questions='@json($quizQuestions)'
                     data-completed="{{ ($levelProgress?->status ?? 'available') === 'completed' ? 'true' : 'false' }}"
+                    data-show-ads="{{ ($shouldShowAds ?? false) ? 'true' : 'false' }}"
+                    data-entry-ad='@json($entryAdPayload)'
+                    data-exit-ad='@json($exitAdPayload)'
+                    data-level-id="{{ $level->id }}"
                 >
                     <div class="quiz-top-row">
                         <div>
@@ -202,6 +229,7 @@
                         <input type="hidden" name="study_seconds" value="0" data-study-seconds>
                         <input type="hidden" name="correct_count" value="0" data-correct-input>
                         <input type="hidden" name="total_questions" value="{{ $quizQuestions->count() }}" data-total-input>
+                        <input type="hidden" name="question_results" value="[]" data-question-results>
 
                         <div class="quiz-finish-panel" data-finish-panel hidden>
                             <small>Level selesai</small>
@@ -219,6 +247,36 @@
         </div>
     </main>
 </div>
+
+@if ($shouldShowAds ?? false)
+    <div
+        class="level-ad-overlay"
+        data-level-ad
+        data-impression-url="{{ route('api.ads.impressions.store') }}"
+        data-csrf="{{ csrf_token() }}"
+        hidden
+    >
+        <div class="level-ad-dialog" role="dialog" aria-modal="true" aria-labelledby="levelAdTitle">
+            <div class="level-ad-media" data-ad-media>
+                <video data-ad-video playsinline muted></video>
+                <div class="level-ad-fallback" data-ad-fallback>
+                    <span>YoLearning</span>
+                </div>
+            </div>
+
+            <div class="level-ad-copy">
+                <small>Iklan</small>
+                <h3 id="levelAdTitle" data-ad-title>Iklan singkat</h3>
+                <p data-ad-description>Tunggu sampai hitungan selesai untuk melanjutkan.</p>
+            </div>
+
+            <div class="level-ad-footer">
+                <span data-ad-countdown>15 detik</span>
+                <button type="button" class="level-ad-continue" data-ad-continue disabled>Lanjut</button>
+            </div>
+        </div>
+    </div>
+@endif
 @endsection
 
 @push('styles')
@@ -430,6 +488,41 @@
         object-fit: cover;
         border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .video-question-panel {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .video-frame {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        background: #050812;
+    }
+
+    .video-frame iframe,
+    .video-frame video {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+        object-fit: cover;
+    }
+
+    .video-question-status {
+        color: var(--muted);
+        font-weight: 850;
+        line-height: 1.55;
+    }
+
+    .video-question-panel.is-locked .answer-option {
+        opacity: .48;
+        cursor: not-allowed;
     }
 
     .listening-instruction {
@@ -696,6 +789,113 @@
         padding: 1rem;
     }
 
+    .level-ad-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        padding: 1.25rem;
+        background: rgba(6, 10, 18, 0.86);
+        backdrop-filter: blur(14px);
+    }
+
+    .level-ad-overlay[hidden] {
+        display: none;
+    }
+
+    .level-ad-dialog {
+        width: min(520px, 100%);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 24px;
+        background: #111827;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+    }
+
+    .level-ad-media {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        background: #0b1220;
+        overflow: hidden;
+    }
+
+    .level-ad-media video,
+    .level-ad-fallback {
+        width: 100%;
+        height: 100%;
+    }
+
+    .level-ad-media video {
+        display: block;
+        object-fit: cover;
+    }
+
+    .level-ad-fallback {
+        display: grid;
+        place-items: center;
+        background:
+            radial-gradient(circle at 28% 20%, rgba(45, 212, 191, 0.28), transparent 32%),
+            linear-gradient(135deg, #111827, #1e293b 56%, #0f172a);
+        color: #e0f2fe;
+        font-size: clamp(2rem, 7vw, 3.8rem);
+        font-weight: 900;
+    }
+
+    .level-ad-copy,
+    .level-ad-footer {
+        padding: 1.1rem 1.2rem;
+    }
+
+    .level-ad-copy small {
+        color: var(--cyan);
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .level-ad-copy h3 {
+        margin: 0.35rem 0;
+        color: #fff;
+        font-size: 1.35rem;
+    }
+
+    .level-ad-copy p {
+        margin: 0;
+        color: var(--muted);
+        font-weight: 700;
+        line-height: 1.55;
+    }
+
+    .level-ad-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .level-ad-footer span {
+        color: #e2e8f0;
+        font-weight: 900;
+    }
+
+    .level-ad-continue {
+        border: 0;
+        border-radius: 999px;
+        padding: 0.72rem 1.1rem;
+        color: #07111f;
+        background: linear-gradient(135deg, var(--cyan), #bbf7d0);
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .level-ad-continue:disabled {
+        cursor: wait;
+        opacity: 0.55;
+        filter: grayscale(0.4);
+    }
+
     @keyframes correctPulse {
         0% { transform: scale(1); }
         45% { transform: scale(1.012); }
@@ -741,7 +941,15 @@
             return;
         }
 
-        const questions = JSON.parse(quizEngine.dataset.questions || '[]');
+        const parseJson = (value, fallback = null) => {
+            try {
+                return JSON.parse(value || 'null') ?? fallback;
+            } catch (error) {
+                return fallback;
+            }
+        };
+
+        const questions = parseJson(quizEngine.dataset.questions, []);
         const startedAt = Date.now();
         const currentNumber = quizEngine.querySelector('[data-current-number]');
         const totalNumber = quizEngine.querySelector('[data-total-number]');
@@ -757,10 +965,26 @@
         const studySecondsInput = quizEngine.querySelector('[data-study-seconds]');
         const correctInput = quizEngine.querySelector('[data-correct-input]');
         const totalInput = quizEngine.querySelector('[data-total-input]');
+        const questionResultsInput = quizEngine.querySelector('[data-question-results]');
+        const adOverlay = document.querySelector('[data-level-ad]');
+        const adVideo = adOverlay?.querySelector('[data-ad-video]');
+        const adFallback = adOverlay?.querySelector('[data-ad-fallback]');
+        const adTitle = adOverlay?.querySelector('[data-ad-title]');
+        const adDescription = adOverlay?.querySelector('[data-ad-description]');
+        const adCountdown = adOverlay?.querySelector('[data-ad-countdown]');
+        const adContinue = adOverlay?.querySelector('[data-ad-continue]');
+        const adSettings = {
+            enabled: quizEngine.dataset.showAds === 'true',
+            entry: parseJson(quizEngine.dataset.entryAd),
+            exit: parseJson(quizEngine.dataset.exitAd),
+        };
 
         let index = 0;
         let correctCount = 0;
         let locked = false;
+        let exitAdShown = false;
+        let activeAdTimer = null;
+        const questionResults = new Map();
 
         totalNumber.textContent = questions.length;
         totalInput.value = questions.length;
@@ -774,8 +998,158 @@
                 .replace(/'/g, '&#039;');
         };
 
+        const youtubeEmbedUrl = (url) => {
+            if (!url) {
+                return null;
+            }
+
+            try {
+                const parsed = new URL(url);
+                const host = parsed.hostname.replace(/^www\./, '');
+                let videoId = null;
+
+                if (host === 'youtu.be') {
+                    videoId = parsed.pathname.split('/').filter(Boolean)[0];
+                }
+
+                if (host === 'youtube.com' || host === 'm.youtube.com') {
+                    videoId = parsed.searchParams.get('v');
+
+                    if (!videoId && parsed.pathname.startsWith('/shorts/')) {
+                        videoId = parsed.pathname.split('/').filter(Boolean)[1];
+                    }
+
+                    if (!videoId && parsed.pathname.startsWith('/embed/')) {
+                        videoId = parsed.pathname.split('/').filter(Boolean)[1];
+                    }
+                }
+
+                return videoId ? `https://www.youtube.com/embed/${encodeURIComponent(videoId)}` : null;
+            } catch (error) {
+                return null;
+            }
+        };
+
         const shuffle = (items) => {
             return [...items].sort(() => Math.random() - 0.5);
+        };
+
+        const selectedAnswerText = (button) => {
+            if (!button) {
+                return null;
+            }
+
+            const textNode = button.querySelector('span');
+            return (textNode?.textContent || button.textContent || '').replace(/\s+/g, ' ').trim() || null;
+        };
+
+        const recordQuestionResult = (question, isCorrect, selectedAnswer = null) => {
+            if (!question?.id) {
+                return;
+            }
+
+            const existing = questionResults.get(question.id) || {
+                question_id: question.id,
+                attempts: 0,
+                is_correct: false,
+                selected_answer: null,
+            };
+
+            existing.attempts += 1;
+            existing.is_correct = Boolean(existing.is_correct || isCorrect);
+            existing.selected_answer = selectedAnswer || existing.selected_answer;
+            questionResults.set(question.id, existing);
+        };
+
+        const syncQuestionResults = () => {
+            if (!questionResultsInput) {
+                return;
+            }
+
+            questionResultsInput.value = JSON.stringify(Array.from(questionResults.values()));
+        };
+
+        const recordAdImpression = (ad) => {
+            if (!adOverlay || !adSettings.enabled || !ad?.placement) {
+                return;
+            }
+
+            fetch(adOverlay.dataset.impressionUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': adOverlay.dataset.csrf || '',
+                },
+                body: JSON.stringify({
+                    ad_id: ad.id || null,
+                    placement: ad.placement,
+                    context_type: 'learning_level',
+                    context_id: Number(quizEngine.dataset.levelId || 0) || null,
+                }),
+            }).catch(() => {});
+        };
+
+        const showAd = (ad, onDone) => {
+            if (!adSettings.enabled || !adOverlay || !ad) {
+                onDone?.();
+                return;
+            }
+
+            window.clearInterval(activeAdTimer);
+
+            const duration = Math.max(Number(ad.duration) || 15, 15);
+            let remaining = duration;
+            let completed = false;
+
+            adTitle.textContent = ad.title || 'Iklan singkat';
+            adDescription.textContent = ad.description || 'Tunggu sampai hitungan selesai untuk melanjutkan.';
+            adCountdown.textContent = `${remaining} detik`;
+            adContinue.disabled = true;
+            adContinue.textContent = 'Tunggu';
+
+            if (ad.videoUrl) {
+                adVideo.hidden = false;
+                adFallback.hidden = true;
+                adVideo.src = ad.videoUrl;
+                adVideo.currentTime = 0;
+                adVideo.play().catch(() => {});
+            } else {
+                adVideo.removeAttribute('src');
+                adVideo.hidden = true;
+                adFallback.hidden = false;
+            }
+
+            adOverlay.hidden = false;
+            recordAdImpression(ad);
+
+            const closeAd = () => {
+                if (completed || remaining > 0) {
+                    return;
+                }
+
+                completed = true;
+                window.clearInterval(activeAdTimer);
+                adVideo.pause();
+                adOverlay.hidden = true;
+                onDone?.();
+            };
+
+            adContinue.onclick = closeAd;
+
+            activeAdTimer = window.setInterval(() => {
+                remaining -= 1;
+
+                if (remaining <= 0) {
+                    window.clearInterval(activeAdTimer);
+                    adCountdown.textContent = 'Iklan selesai';
+                    adContinue.disabled = false;
+                    adContinue.textContent = 'Lanjut';
+                    return;
+                }
+
+                adCountdown.textContent = `${remaining} detik`;
+            }, 1000);
         };
 
         const updateHeader = () => {
@@ -804,21 +1178,33 @@
 
         const finishQuiz = () => {
             resetFeedback();
-            questionBody.innerHTML = `
-                <div class="quiz-context-box">
-                    <strong>Ringkasan</strong>
-                    <p>Kamu menjawab ${correctCount} dari ${questions.length} soal dengan benar. Durasi belajar dihitung dari waktu kamu berada di halaman level ini.</p>
-                </div>
-            `;
-            questionTitle.textContent = 'Semua soal selesai';
-            questionType.textContent = 'Selesai';
-            currentNumber.textContent = questions.length;
-            progressBar.style.width = '100%';
-            studySecondsInput.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
-            correctInput.value = correctCount;
-            totalInput.value = questions.length;
-            finishPanel.hidden = false;
-            finishPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            const revealFinishPanel = () => {
+                questionBody.innerHTML = `
+                    <div class="quiz-context-box">
+                        <strong>Ringkasan</strong>
+                        <p>Kamu menjawab ${correctCount} dari ${questions.length} soal dengan benar. Durasi belajar dihitung dari waktu kamu berada di halaman level ini.</p>
+                    </div>
+                `;
+                questionTitle.textContent = 'Semua soal selesai';
+                questionType.textContent = 'Selesai';
+                currentNumber.textContent = questions.length;
+                progressBar.style.width = '100%';
+                studySecondsInput.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+                correctInput.value = correctCount;
+                totalInput.value = questions.length;
+                syncQuestionResults();
+                finishPanel.hidden = false;
+                finishPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            };
+
+            if (adSettings.enabled && adSettings.exit && !exitAdShown) {
+                exitAdShown = true;
+                showAd(adSettings.exit, revealFinishPanel);
+                return;
+            }
+
+            revealFinishPanel();
         };
 
         const goNext = () => {
@@ -837,6 +1223,8 @@
                 return;
             }
 
+            recordQuestionResult(questions[index], isCorrect, selectedAnswerText(wrongButton));
+            syncQuestionResults();
             locked = true;
 
             if (isCorrect) {
@@ -927,6 +1315,61 @@
                     answerQuestion(isCorrect, question.explanation || '', button);
                 });
             });
+        };
+
+        const renderVideoQuestion = (question) => {
+            const videoUrl = question.settings?.videoUrl || '';
+            const embedUrl = youtubeEmbedUrl(videoUrl);
+            const mustWatchSeconds = Math.max(Number(question.settings?.mustWatchSeconds || 0), 0);
+            const videoMarkup = embedUrl
+                ? `<iframe src="${escapeHtml(embedUrl)}" title="Video question" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`
+                : (videoUrl
+                    ? `<video controls playsinline src="${escapeHtml(videoUrl)}"></video>`
+                    : `<div class="quiz-context-box"><strong>Video belum tersedia</strong><p>Admin belum mengisi upload video atau video URL.</p></div>`);
+
+            questionBody.innerHTML = `
+                <div class="video-question-panel ${mustWatchSeconds > 0 ? 'is-locked' : ''}" data-video-question-panel>
+                    <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
+                    <div class="video-frame">${videoMarkup}</div>
+                    <p class="video-question-status" data-video-status>
+                        ${mustWatchSeconds > 0 ? `Pilihan jawaban terbuka dalam ${mustWatchSeconds} detik.` : 'Jawab pertanyaan setelah menonton video.'}
+                    </p>
+                    ${question.settings?.videoTranscript ? `<div class="quiz-context-box"><strong>Catatan Video</strong><p>${escapeHtml(question.settings.videoTranscript)}</p></div>` : ''}
+                    <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
+                    <div data-video-options>
+                        ${renderOptions(question)}
+                    </div>
+                </div>
+            `;
+
+            attachOptionEvents(question);
+
+            if (mustWatchSeconds <= 0) {
+                return;
+            }
+
+            locked = true;
+            const panel = questionBody.querySelector('[data-video-question-panel]');
+            const status = questionBody.querySelector('[data-video-status]');
+            let remaining = mustWatchSeconds;
+
+            const timer = window.setInterval(() => {
+                remaining -= 1;
+
+                if (remaining <= 0) {
+                    window.clearInterval(timer);
+                    locked = false;
+                    panel?.classList.remove('is-locked');
+                    if (status) {
+                        status.textContent = 'Pilihan jawaban sudah terbuka.';
+                    }
+                    return;
+                }
+
+                if (status) {
+                    status.textContent = `Pilihan jawaban terbuka dalam ${remaining} detik.`;
+                }
+            }, 1000);
         };
 
         const renderStandardQuestion = (question) => {
@@ -1053,6 +1496,8 @@
                         correctCount += 1;
                         correctCountNode.textContent = correctCount;
                         correctInput.value = correctCount;
+                        recordQuestionResult(question, true, 'listening_completed');
+                        syncQuestionResults();
                     }
 
                     goNext();
@@ -1465,6 +1910,11 @@
                 return;
             }
 
+            if (question.type === 'video_question') {
+                renderVideoQuestion(question);
+                return;
+            }
+
             renderStandardQuestion(question);
         };
 
@@ -1472,7 +1922,13 @@
             studySecondsInput.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
             correctInput.value = correctCount;
             totalInput.value = questions.length;
+            syncQuestionResults();
         });
+
+        if (adSettings.enabled && adSettings.entry) {
+            showAd(adSettings.entry, renderQuestion);
+            return;
+        }
 
         renderQuestion();
     })();

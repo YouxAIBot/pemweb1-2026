@@ -5,7 +5,16 @@
 @section('content')
 @php
     $avatarUrl = $user->avatar_url ? asset('storage/' . $user->avatar_url) : null;
-    $isPremium = $user->roles->pluck('name')->contains(fn ($name) => str_contains(strtolower($name), 'premium'));
+    $activePremium = $user->activePremium;
+    $isPremium = $user->isPremium();
+    $preference = $settings['preferences'] ?? [];
+    $tabTitles = [
+        'account' => ['eyebrow' => 'Account', 'title' => 'Account'],
+        'edit-profile' => ['eyebrow' => 'Edit Profiles', 'title' => 'Profil Pengguna'],
+        'preferences' => ['eyebrow' => 'Learning Settings', 'title' => 'Preferensi Belajar'],
+        'progress' => ['eyebrow' => 'Progress', 'title' => 'Progress & Data'],
+    ];
+    $currentTitle = $tabTitles[$tab] ?? $tabTitles['account'];
 @endphp
 <div class="settings-page">
     <main class="settings-shell">
@@ -37,6 +46,12 @@
             </div>
 
             <div class="settings-nav-group">
+                <span class="settings-nav-label">Learning</span>
+                <a href="{{ route('learning.settings', ['tab' => 'preferences']) }}" class="settings-nav-item {{ $tab === 'preferences' ? 'active' : '' }}">Preferensi</a>
+                <a href="{{ route('learning.settings', ['tab' => 'progress']) }}" class="settings-nav-item {{ $tab === 'progress' ? 'active' : '' }}">Progress &amp; Data</a>
+            </div>
+
+            <div class="settings-nav-group">
                 <span class="settings-nav-label">Billing</span>
                 <a href="{{ route('learning.profile.edit', ['tab' => 'account']) }}#subscription" class="settings-nav-item">Subscription</a>
             </div>
@@ -45,8 +60,8 @@
         <section class="settings-content">
             <div class="settings-topbar">
                 <div>
-                    <small>{{ $tab === 'edit-profile' ? 'Edit Profiles' : 'Account' }}</small>
-                    <h1>{{ $tab === 'edit-profile' ? 'Profil Pengguna' : 'Account' }}</h1>
+                    <small>{{ $currentTitle['eyebrow'] }}</small>
+                    <h1>{{ $currentTitle['title'] }}</h1>
                 </div>
                 <a href="{{ route('dashboard') }}" class="settings-close">✕</a>
             </div>
@@ -137,6 +152,115 @@
                         </div>
                     </aside>
                 </div>
+            @elseif ($tab === 'preferences')
+                <form method="POST" action="{{ route('learning.settings.preferences.update') }}" class="settings-form-card settings-preference-form">
+                    @csrf
+
+                    <div class="settings-hero-card">
+                        <div>
+                            <small>Preferensi Belajar</small>
+                            <h2>Atur pengalaman belajar kamu</h2>
+                            <p>Preferensi ini disimpan di akun kamu untuk audio, tampilan, target harian, dan privasi profil.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-pref-grid">
+                        <label class="settings-field">
+                            <span>Target Belajar Harian</span>
+                            <input type="number" name="daily_goal_minutes" min="5" max="180" value="{{ old('daily_goal_minutes', $preference['daily_goal_minutes'] ?? 10) }}" required>
+                            @error('daily_goal_minutes') <em>{{ $message }}</em> @enderror
+                        </label>
+
+                        <label class="settings-field">
+                            <span>Tema Tampilan</span>
+                            <select name="theme_mode">
+                                @foreach (['system' => 'Ikuti Sistem', 'dark' => 'Gelap', 'light' => 'Terang'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('theme_mode', $preference['theme_mode'] ?? 'system') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('theme_mode') <em>{{ $message }}</em> @enderror
+                        </label>
+
+                        <label class="settings-field">
+                            <span>Jam Pengingat</span>
+                            <input type="time" name="study_reminder_time" value="{{ old('study_reminder_time', $preference['study_reminder_time'] ?? '19:00') }}">
+                            @error('study_reminder_time') <em>{{ $message }}</em> @enderror
+                        </label>
+
+                        <label class="settings-field">
+                            <span>Voice Pilihan</span>
+                            <input type="text" name="preferred_voice" value="{{ old('preferred_voice', $preference['preferred_voice'] ?? '') }}" placeholder="en-US-AriaNeural">
+                            @error('preferred_voice') <em>{{ $message }}</em> @enderror
+                        </label>
+                    </div>
+
+                    <div class="settings-toggle-grid">
+                        @foreach ([
+                            'sound_effects' => ['Efek Suara', 'Feedback benar/salah memakai suara ringan.'],
+                            'autoplay_audio' => ['Autoplay Audio', 'Audio listening diputar otomatis jika browser mengizinkan.'],
+                            'slow_audio_mode' => ['Mode Audio Lambat', 'Audio pembelajaran diputar lebih pelan untuk pemula.'],
+                            'show_romanization' => ['Tampilkan Romanisasi', 'Huruf menampilkan cara baca.'],
+                            'public_profile' => ['Profil Publik', 'Nama dan statistik dasar boleh muncul di leaderboard.'],
+                            'study_reminder_enabled' => ['Pengingat Belajar', 'Aktifkan pengingat sesuai jam yang dipilih.'],
+                        ] as $name => [$label, $description])
+                            <label class="settings-toggle-card">
+                                <input type="checkbox" name="{{ $name }}" value="1" @checked(old($name, $preference[$name] ?? false))>
+                                <span>
+                                    <strong>{{ $label }}</strong>
+                                    <small>{{ $description }}</small>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <button type="submit" class="settings-save-btn">Simpan Preferensi</button>
+                </form>
+            @elseif ($tab === 'progress')
+                <div class="settings-section">
+                    <h2>Ringkasan Progress</h2>
+                    <div class="settings-metric-grid">
+                        <div class="settings-metric-card"><span>Level Selesai</span><strong>{{ $progressSummary['levels_completed'] }} / {{ $progressSummary['levels_total'] }}</strong></div>
+                        <div class="settings-metric-card"><span>Soal Terjawab</span><strong>{{ $progressSummary['questions_answered'] }}</strong></div>
+                        <div class="settings-metric-card"><span>Jawaban Benar</span><strong>{{ $progressSummary['questions_correct'] }}</strong></div>
+                        <div class="settings-metric-card"><span>Total XP</span><strong>{{ $profile?->total_xp ?? 0 }}</strong></div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>Bahasa Saya</h2>
+                    <div class="settings-table-card">
+                        @forelse ($languages as $language)
+                            <div class="settings-row">
+                                <span>{{ $language->flag_label ?: 'Lang' }}</span>
+                                <strong>{{ $language->name }}</strong>
+                                <a href="{{ route('learning.onboarding') }}">Kelola</a>
+                            </div>
+                        @empty
+                            <div class="settings-row">
+                                <span>Bahasa</span>
+                                <strong>Belum ada bahasa aktif.</strong>
+                                <a href="{{ route('learning.onboarding') }}">Pilih</a>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>Reset Progress</h2>
+                    <form method="POST" action="{{ route('learning.settings.progress.reset') }}" class="settings-danger-card">
+                        @csrf
+                        <div>
+                            <strong>Reset progress bahasa aktif</strong>
+                            <p>Progress level dan jawaban soal untuk {{ $profile?->language?->name ?? 'bahasa aktif' }} akan dihapus. Data akun, premium, dan pembayaran tetap aman.</p>
+                        </div>
+                        <label class="settings-field">
+                            <span>Ketik RESET</span>
+                            <input type="text" name="confirmation" placeholder="RESET">
+                            @error('confirmation') <em>{{ $message }}</em> @enderror
+                        </label>
+                        <button type="submit">Reset Progress</button>
+                    </form>
+                </div>
             @else
                 <div class="settings-section">
                     <h2>Account Info</h2>
@@ -186,7 +310,14 @@
                         <div>
                             <small>{{ $isPremium ? 'Premium Active' : 'Free Plan' }}</small>
                             <h3>{{ $isPremium ? 'Belajar tanpa iklan sedang aktif' : 'Akun kamu masih menggunakan paket gratis' }}</h3>
-                            <p>{{ $isPremium ? 'Premium aktif membuat pengalaman belajar lebih nyaman tanpa iklan saat masuk dan keluar soal.' : 'Upgrade ke premium untuk pengalaman belajar yang lebih nyaman tanpa iklan saat masuk dan keluar soal.' }}</p>
+                            <p>
+                                @if ($isPremium)
+                                    Premium aktif sampai {{ $activePremium?->ends_at?->format('d M Y H:i') }}. Iklan saat masuk dan keluar soal otomatis tidak tampil.
+                                @else
+                                    Upgrade ke premium untuk pengalaman belajar yang lebih nyaman tanpa iklan saat masuk dan keluar soal.
+                                @endif
+                            </p>
+                            <a href="{{ route('learning.premium') }}" class="subscription-action">{{ $isPremium ? 'Lihat Riwayat Pembayaran' : 'Upgrade Premium' }}</a>
                         </div>
                         <span class="subscription-pill">{{ $isPremium ? 'Aktif' : 'Gratis' }}</span>
                     </div>
@@ -236,6 +367,7 @@
     .subscription-card h3 { margin:.4rem 0; font-size:1.3rem; letter-spacing:-.04em; }
     .subscription-card p { color:var(--muted); font-weight:780; line-height:1.6; }
     .subscription-pill { padding:.65rem .9rem; border-radius:999px; background:rgba(102,232,247,.12); border:1px solid rgba(102,232,247,.24); color:var(--cyan); font-weight:950; }
+    .subscription-action { display:inline-flex; margin-top:.85rem; border-radius:999px; background:linear-gradient(135deg,var(--cyan),var(--primary)); color:#07101f; padding:.72rem 1rem; font-weight:950; }
     .settings-edit-layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:1rem; align-items:start; }
     .settings-form-card { padding:1rem; }
     .settings-hero-card { border:1px solid rgba(116,88,255,.28); background:linear-gradient(90deg, rgba(84,49,160,.22), rgba(30,35,60,.2)); border-radius:22px; padding:1rem 1.1rem; margin-bottom:1rem; }
@@ -244,12 +376,26 @@
     .settings-hero-card p { color:var(--muted); font-weight:780; line-height:1.6; }
     .settings-field { display:grid; gap:.45rem; margin-bottom:.9rem; }
     .settings-field span { color:var(--muted); font-size:.84rem; font-weight:900; }
-    .settings-field input, .settings-field textarea { width:100%; border:1px solid var(--border); border-radius:16px; background:rgba(255,255,255,.05); color:var(--text); padding:.9rem 1rem; outline:none; font-weight:850; }
+    .settings-field input, .settings-field textarea, .settings-field select { width:100%; border:1px solid var(--border); border-radius:16px; background:rgba(255,255,255,.05); color:var(--text); padding:.9rem 1rem; outline:none; font-weight:850; }
+    .settings-field select option { color:#111827; }
     .settings-field textarea { resize:vertical; min-height:100px; }
-    .settings-field input:focus, .settings-field textarea:focus { border-color:rgba(102,232,247,.4); }
+    .settings-field input:focus, .settings-field textarea:focus, .settings-field select:focus { border-color:rgba(102,232,247,.4); }
     .settings-field em { color:#ffb4c2; font-style:normal; font-weight:850; font-size:.82rem; }
     .settings-section-divider { margin:1rem 0 .85rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,.06); color:var(--cyan); font-weight:950; letter-spacing:.04em; }
     .settings-save-btn { border:0; border-radius:18px; background:linear-gradient(135deg,var(--cyan),var(--primary)); color:#07101f; padding:1rem 1.1rem; font-weight:950; cursor:pointer; width:100%; }
+    .settings-pref-grid, .settings-metric-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.9rem; }
+    .settings-toggle-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; margin:1rem 0; }
+    .settings-toggle-card { display:flex; align-items:flex-start; gap:.75rem; border:1px solid var(--border); border-radius:18px; background:rgba(255,255,255,.04); padding:.9rem; cursor:pointer; }
+    .settings-toggle-card input { width:18px; height:18px; margin-top:.15rem; accent-color:#66e8f7; }
+    .settings-toggle-card strong { display:block; font-weight:950; }
+    .settings-toggle-card small { display:block; color:var(--muted); font-weight:780; line-height:1.45; margin-top:.2rem; }
+    .settings-metric-card { border:1px solid var(--border); border-radius:20px; background:rgba(255,255,255,.045); padding:1rem; }
+    .settings-metric-card span { display:block; color:var(--muted); font-weight:850; margin-bottom:.35rem; }
+    .settings-metric-card strong { font-size:1.55rem; letter-spacing:-.04em; }
+    .settings-danger-card { display:grid; gap:1rem; border:1px solid rgba(255,107,138,.32); border-radius:22px; background:rgba(255,107,138,.08); padding:1rem; }
+    .settings-danger-card strong { font-size:1.1rem; }
+    .settings-danger-card p { color:var(--muted); line-height:1.6; font-weight:780; margin-top:.35rem; }
+    .settings-danger-card button { border:0; border-radius:16px; background:#ff5d7d; color:#fff; padding:.9rem 1rem; font-weight:950; cursor:pointer; }
     .preview-card { overflow:hidden; position:sticky; top:1rem; }
     .preview-cover { height:118px; background:radial-gradient(circle at 20% 20%, rgba(102,232,247,.22), transparent 35%), linear-gradient(135deg, #2b0f72, #120824 55%, #2d1a74); }
     .preview-body { padding:1rem; margin-top:-38px; }
@@ -268,6 +414,7 @@
         .settings-page { padding:.7rem; }
         .settings-row { grid-template-columns:1fr; }
         .subscription-card, .settings-topbar { flex-direction:column; }
+        .settings-pref-grid, .settings-toggle-grid, .settings-metric-grid { grid-template-columns:1fr; }
     }
 </style>
 @endpush
