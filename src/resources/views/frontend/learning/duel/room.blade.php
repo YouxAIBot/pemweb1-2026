@@ -99,6 +99,12 @@
             #050814;
     }
 
+    html.duel-focus-active,
+    html.duel-focus-active body {
+        height: 100%;
+        overflow: hidden;
+    }
+
     .duel-room-top,
     .duel-arena-card {
         width: min(1100px, 100%);
@@ -162,6 +168,10 @@
     .duel-result-stage {
         position: relative;
         z-index: 1;
+    }
+
+    .duel-room-page [hidden] {
+        display: none !important;
     }
 
     .duel-vs-stage {
@@ -263,6 +273,129 @@
     .duel-quiz-stage {
         width: min(820px, 100%);
         margin-inline: auto;
+    }
+
+    .duel-room-page.is-quiz-focus {
+        height: 100dvh;
+        min-height: 100dvh;
+        overflow: hidden;
+        padding: 0.75rem 1rem;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-room-top {
+        display: none;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-vs-stage {
+        display: none !important;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-arena-card {
+        width: min(980px, 100%);
+        height: calc(100dvh - 1.5rem);
+        min-height: 0;
+        align-items: stretch;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-arena-card::before {
+        display: none;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-quiz-stage {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+        gap: 0.62rem;
+        align-self: stretch;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-quiz-head {
+        order: 2;
+        margin-bottom: 0;
+        padding-top: 0.1rem;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-quiz-head h1 {
+        font-size: clamp(1.2rem, 3vw, 2rem);
+    }
+
+    .duel-room-page.is-quiz-focus .duel-timer {
+        width: 68px;
+        height: 68px;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-timer b {
+        font-size: 1.45rem;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-question-box {
+        order: 3;
+        min-height: 0;
+        overflow: auto;
+        margin-bottom: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        padding: 0.2rem 0;
+        scrollbar-width: thin;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-question-box h2 {
+        font-size: clamp(1.65rem, 5vw, 3.2rem);
+        line-height: 1.04;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-options-grid {
+        order: 4;
+        min-height: 0;
+        overflow-y: auto;
+        padding-top: 0.55rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        scrollbar-width: thin;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-option-btn {
+        min-height: 58px;
+        border-radius: 16px;
+        padding: 0.78rem 0.9rem;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-feedback {
+        order: 5;
+        min-height: 38px;
+        margin-top: 0;
+        padding-top: 0.45rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .duel-room-page.is-quiz-focus .duel-live-score {
+        order: 1;
+        margin-top: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .duel-room-page.is-quiz-focus .duel-live-score div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding: 0.48rem 0.7rem;
+        border-radius: 14px;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-live-score span {
+        font-size: 0.78rem;
+    }
+
+    .duel-room-page.is-quiz-focus .duel-live-score b {
+        font-size: 1.1rem;
     }
 
     .duel-quiz-head {
@@ -488,6 +621,19 @@
         .duel-profile-card {
             min-height: 260px;
         }
+
+        .duel-room-page.is-quiz-focus {
+            padding: 0.65rem;
+        }
+
+        .duel-room-page.is-quiz-focus .duel-arena-card {
+            height: calc(100dvh - 1.3rem);
+        }
+
+        .duel-room-page.is-quiz-focus .duel-options-grid,
+        .duel-room-page.is-quiz-focus .duel-live-score {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 @endpush
@@ -521,6 +667,8 @@
 
     const showScreen = (name) => {
         Object.entries(screens).forEach(([key, el]) => el.hidden = key !== name);
+        root.classList.toggle('is-quiz-focus', name === 'quiz');
+        document.documentElement.classList.toggle('duel-focus-active', name === 'quiz');
     };
 
     const fetchState = async () => {
@@ -591,11 +739,11 @@
         const grid = document.querySelector('[data-options-grid]');
         grid.innerHTML = '';
 
-        q.options.forEach((option, index) => {
+        q.options.forEach((option) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'duel-option-btn';
-            btn.textContent = `${String.fromCharCode(65 + index)}. ${option}`;
+            btn.textContent = option;
             btn.addEventListener('click', () => submitAnswer(option, btn));
             grid.appendChild(btn);
         });

@@ -22,7 +22,7 @@
         @endforeach
     </div>
 
-    <div class="stat-card">
+    <div class="stat-card right-panel-menu-card" hidden>
         <h3>Menu</h3>
         <nav class="menu-list">
             @foreach ($menus as $menu)

@@ -120,6 +120,7 @@ class LearningQuestionResource extends Resource
                 static::realCaseSection(),
                 static::videoQuestionSection(),
                 static::mixedSection(),
+                static::learningAidSection(),
 
                 Forms\Components\Section::make('Pembahasan')
                     ->description('Bagian ini muncul untuk semua jenis soal.')
@@ -137,6 +138,49 @@ class LearningQuestionResource extends Resource
                             ->helperText('Tuliskan alasan kenapa jawaban benar. Ini akan dipakai saat review.'),
                     ]),
             ]);
+    }
+
+    private static function learningAidSection(): Forms\Components\Section
+    {
+        return Forms\Components\Section::make('Bantuan Belajar Interaktif')
+            ->description('Opsional. Data ini dipakai pada tampilan soal baru: teks bahasa asing bisa diklik/didengar dan saat diarahkan kursor akan menampilkan terjemahan.')
+            ->visible(fn (Get $get): bool => in_array($get('type'), [
+                'multiple_choice',
+                'word_match',
+                'real_case',
+                'video_question',
+                'mixed',
+            ], true))
+            ->schema([
+                Forms\Components\TextInput::make('settings.learning_phrase_text')
+                    ->label('Teks Bahasa Asing')
+                    ->maxLength(255)
+                    ->helperText('Contoh: 火车站, Good morning, atau kalimat pendek yang sedang dipelajari.'),
+
+                Forms\Components\Textarea::make('settings.learning_phrase_translation')
+                    ->label('Terjemahan Saat Hover')
+                    ->rows(2)
+                    ->columnSpanFull()
+                    ->helperText('Akan muncul saat user mengarahkan kursor ke teks bahasa asing.'),
+
+                Forms\Components\FileUpload::make('settings.learning_phrase_audio_path')
+                    ->label('Upload Audio Teks Bahasa Asing')
+                    ->acceptedFileTypes([
+                        'audio/mpeg',
+                        'audio/wav',
+                        'audio/ogg',
+                        'audio/mp4',
+                        'audio/x-m4a',
+                    ])
+                    ->directory('learning/audio/phrases')
+                    ->helperText('Opsional. Audio ini diputar saat user klik tombol dengar pada frasa.'),
+
+                Forms\Components\TextInput::make('settings.learning_phrase_audio_manual_path')
+                    ->label('Path Audio Teks Bahasa Asing')
+                    ->placeholder('learning/audio/generated/edge-tts/phrase.mp3')
+                    ->helperText('Isi ini kalau audio dibuat dari API Tools/Edge TTS. Jika diisi, path ini diprioritaskan.'),
+            ])
+            ->columns(2);
     }
 
     private static function multipleChoiceSection(): Forms\Components\Section
@@ -261,6 +305,22 @@ class LearningQuestionResource extends Resource
                                         Forms\Components\TextInput::make('text')
                                             ->label('Teks Opsi')
                                             ->required(),
+
+                                        Forms\Components\FileUpload::make('audio_path')
+                                            ->label('Audio Opsi')
+                                            ->acceptedFileTypes([
+                                                'audio/mpeg',
+                                                'audio/wav',
+                                                'audio/ogg',
+                                                'audio/mp4',
+                                                'audio/x-m4a',
+                                            ])
+                                            ->directory('learning/audio/options'),
+
+                                        Forms\Components\TextInput::make('audio_manual_path')
+                                            ->label('Path Audio Opsi')
+                                            ->placeholder('learning/audio/generated/edge-tts/option.mp3')
+                                            ->helperText('Opsional jika audio dibuat dari API Tools.'),
 
                                         Forms\Components\Toggle::make('is_correct')
                                             ->label('Jawaban Benar')

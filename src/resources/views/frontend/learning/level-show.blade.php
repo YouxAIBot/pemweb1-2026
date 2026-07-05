@@ -41,9 +41,12 @@
             if ($type === 'question') {
                 $questionAudioPath = $data['question_audio_manual_path'] ?? ($data['question_audio_path'] ?? null);
                 $options = collect($data['options'] ?? [])->map(function ($option, $optionIndex) {
+                    $optionAudioPath = $option['audio_manual_path'] ?? ($option['audio_path'] ?? null);
+
                     return [
                         'id' => $optionIndex + 1,
                         'text' => $option['text'] ?? '',
+                        'audioUrl' => learningAudioUrl($optionAudioPath),
                         'isCorrect' => (bool) ($option['is_correct'] ?? false),
                     ];
                 })->values();
@@ -73,9 +76,12 @@
                 $storyAudioPath = $step['story_audio_path'] ?? null;
                 $questionAudioPath = $step['question_audio_path'] ?? null;
                 $options = collect($step['options'] ?? [])->map(function ($option, $optionIndex) {
+                    $optionAudioPath = $option['audio_manual_path'] ?? ($option['audio_path'] ?? null);
+
                     return [
                         'id' => $optionIndex + 1,
                         'text' => $option['text'] ?? '',
+                        'audioUrl' => learningAudioUrl($optionAudioPath),
                         'isCorrect' => (bool) ($option['is_correct'] ?? false),
                     ];
                 })->values();
@@ -118,6 +124,7 @@
             'questionText' => $question->question_text,
             'audioUrl' => learningAudioUrl($question->audio_path),
             'imageUrl' => $question->image_path ? asset('storage/' . $question->image_path) : null,
+            'correctAnswer' => $question->correct_answer,
             'points' => (int) $question->points,
             'timeLimit' => $question->time_limit,
             'explanation' => $question->explanation,
@@ -128,6 +135,9 @@
                 'idealResponse' => $settings['ideal_response'] ?? null,
                 'mixNote' => $settings['mix_note'] ?? null,
                 'storyButtonLabel' => $settings['story_button_label'] ?? 'Mulai',
+                'learningPhrase' => $settings['learning_phrase_text'] ?? null,
+                'learningPhraseTranslation' => $settings['learning_phrase_translation'] ?? null,
+                'learningPhraseAudioUrl' => learningAudioUrl($settings['learning_phrase_audio_manual_path'] ?? ($settings['learning_phrase_audio_path'] ?? null)) ?: learningAudioUrl($question->audio_path),
                 'storySegments' => $storySegments,
                 'listeningFlow' => $listeningFlow,
                 'wordPairs' => $wordPairs,
@@ -315,7 +325,7 @@
     }
 
     .quiz-content-area {
-        max-width: 920px;
+        max-width: 1040px;
         padding: clamp(1rem, 4vw, 2rem);
     }
 
@@ -408,9 +418,9 @@
 
     .quiz-card {
         position: relative;
-        min-height: 420px;
+        min-height: 520px;
         padding: clamp(1rem, 3vw, 1.5rem);
-        padding-bottom: 5rem;
+        padding-bottom: 5.5rem;
         transition: border-color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
         box-shadow: 0 20px 48px rgba(0, 0, 0, 0.18);
     }
@@ -458,6 +468,345 @@
         font-size: clamp(1.5rem, 4vw, 2.4rem);
         line-height: 1.08;
         letter-spacing: -0.06em;
+    }
+
+    .study-shell {
+        display: grid;
+        gap: 1.1rem;
+        animation: studyIn 0.42s ease both;
+    }
+
+    .study-prompt-grid {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .study-mentor {
+        width: 86px;
+        aspect-ratio: 1;
+        border: 1px solid rgba(102, 232, 247, 0.2);
+        border-radius: 28px;
+        display: grid;
+        place-items: center;
+        background:
+            radial-gradient(circle at 30% 22%, rgba(102, 232, 247, 0.34), transparent 32%),
+            linear-gradient(145deg, #172033, #101722);
+        color: #eaffff;
+        font-weight: 1000;
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+        transform-origin: bottom center;
+        animation: mentorFloat 3.8s ease-in-out infinite;
+    }
+
+    .study-phrase-card {
+        position: relative;
+        display: grid;
+        gap: 0.72rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 22px;
+        background: linear-gradient(145deg, rgba(29, 36, 49, 0.96), rgba(16, 23, 34, 0.96));
+        padding: 1rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .study-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .study-phrase {
+        position: relative;
+        width: fit-content;
+        max-width: 100%;
+        border: 0;
+        background: transparent;
+        color: #eef7ff;
+        padding: 0;
+        text-align: left;
+        font-size: clamp(1.6rem, 5vw, 3.6rem);
+        font-weight: 1000;
+        letter-spacing: 0;
+        line-height: 1.05;
+        cursor: help;
+    }
+
+    .study-phrase::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -0.25rem;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--cyan), var(--primary));
+        opacity: 0.72;
+        transform: scaleX(0.62);
+        transform-origin: left;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .study-phrase:hover::after,
+    .study-phrase:focus-visible::after {
+        transform: scaleX(1);
+        opacity: 1;
+    }
+
+    .translation-popover {
+        position: absolute;
+        left: 0;
+        top: calc(100% + 0.75rem);
+        z-index: 5;
+        min-width: min(340px, 82vw);
+        border: 1px solid rgba(102, 232, 247, 0.22);
+        border-radius: 18px;
+        background: rgba(13, 21, 31, 0.98);
+        color: #e9f5ff;
+        padding: 0.85rem 0.95rem;
+        font-size: 0.98rem;
+        font-weight: 850;
+        line-height: 1.45;
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-0.35rem) scale(0.98);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .translation-popover::before {
+        content: '';
+        position: absolute;
+        left: 1.1rem;
+        top: -7px;
+        width: 12px;
+        height: 12px;
+        rotate: 45deg;
+        background: inherit;
+        border-left: 1px solid rgba(102, 232, 247, 0.22);
+        border-top: 1px solid rgba(102, 232, 247, 0.22);
+    }
+
+    .study-phrase:hover .translation-popover,
+    .study-phrase:focus-visible .translation-popover {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    .audio-chip,
+    .answer-clear {
+        border: 1px solid rgba(102, 232, 247, 0.22);
+        border-radius: 999px;
+        background: rgba(102, 232, 247, 0.09);
+        color: #dffbff;
+        padding: 0.48rem 0.72rem;
+        font-weight: 950;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .audio-chip:hover,
+    .answer-clear:hover {
+        transform: translateY(-2px);
+        border-color: rgba(102, 232, 247, 0.42);
+        background: rgba(102, 232, 247, 0.15);
+    }
+
+    .study-question-copy {
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .answer-workbench {
+        display: grid;
+        gap: 1rem;
+        margin-top: 0.2rem;
+    }
+
+    .answer-zone {
+        display: grid;
+        gap: 0.65rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.9rem 0;
+    }
+
+    .answer-zone-head,
+    .answer-actions,
+    .answer-action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .answer-zone-label {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .answer-slot {
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        border: 1px dashed rgba(255, 255, 255, 0.18);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.78rem 0.9rem;
+        color: rgba(226, 232, 240, 0.68);
+        font-weight: 950;
+        line-height: 1.35;
+        transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+
+    .answer-slot.is-filled {
+        border-style: solid;
+        border-color: rgba(102, 232, 247, 0.36);
+        background: rgba(102, 232, 247, 0.1);
+        color: #effcff;
+        animation: answerDrop 0.28s ease both;
+    }
+
+    .answer-option-bank {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+    }
+
+    .answer-token {
+        min-height: 54px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        background: #1d2431;
+        color: var(--text);
+        padding: 0.78rem 0.92rem;
+        font-weight: 1000;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .answer-token:hover:not(:disabled) {
+        transform: translateY(-3px);
+        border-color: rgba(102, 232, 247, 0.36);
+        background: #263143;
+    }
+
+    .answer-token.is-selected {
+        border-color: rgba(102, 232, 247, 0.58);
+        background: rgba(102, 232, 247, 0.14);
+        transform: translateY(-3px);
+    }
+
+    .answer-token.is-correct {
+        border-color: rgba(73, 211, 139, 0.7);
+        background: rgba(73, 211, 139, 0.16);
+    }
+
+    .answer-token.is-wrong {
+        border-color: rgba(255, 107, 138, 0.7);
+        background: rgba(255, 107, 138, 0.15);
+    }
+
+    .answer-token:disabled {
+        cursor: not-allowed;
+        opacity: 0.72;
+    }
+
+    .answer-token small {
+        margin-left: 0.42rem;
+        color: var(--cyan);
+        font-size: 0.7rem;
+        font-weight: 1000;
+    }
+
+    .answer-token img {
+        display: block;
+        width: 74px;
+        height: 52px;
+        margin-top: 0.45rem;
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .answer-actions,
+    .answer-action-bar {
+        margin-top: 0.2rem;
+    }
+
+    .answer-action-bar {
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding-top: 0.85rem;
+    }
+
+    .skip-question-button,
+    .check-answer-button {
+        min-width: 150px;
+        border: 0;
+        border-radius: 18px;
+        padding: 0.95rem 1.15rem;
+        font-weight: 1000;
+        cursor: pointer;
+        transition: transform 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+    }
+
+    .skip-question-button {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #cbd5e1;
+    }
+
+    .check-answer-button {
+        background: linear-gradient(135deg, #a3e635, #4ade80);
+        color: #07101f;
+        box-shadow: 0 14px 24px rgba(74, 222, 128, 0.16);
+    }
+
+    .skip-question-button:hover:not(:disabled),
+    .check-answer-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    .skip-question-button:disabled,
+    .check-answer-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.52;
+        filter: grayscale(0.25);
+    }
+
+    .check-answer-button.is-loading {
+        position: relative;
+        padding-left: 2.55rem;
+    }
+
+    .check-answer-button.is-loading::before {
+        content: '';
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        width: 17px;
+        height: 17px;
+        margin-top: -8.5px;
+        border: 3px solid rgba(7, 16, 31, 0.22);
+        border-top-color: #07101f;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+    }
+
+    .answer-workbench.is-checking .answer-slot {
+        border-color: rgba(163, 230, 53, 0.44);
+        background: rgba(163, 230, 53, 0.08);
     }
 
     .quiz-context-box,
@@ -521,6 +870,12 @@
     }
 
     .video-question-panel.is-locked .answer-option {
+        opacity: .48;
+        cursor: not-allowed;
+    }
+
+    .video-question-panel.is-locked .answer-token,
+    .video-question-panel.is-locked .check-answer-button {
         opacity: .48;
         cursor: not-allowed;
     }
@@ -896,6 +1251,309 @@
         filter: grayscale(0.4);
     }
 
+    @media (min-width: 761px) {
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .quiz-focus-mode,
+        .quiz-focus-mode.app-frame,
+        .quiz-main-panel {
+            height: 100dvh;
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        .quiz-topbar {
+            min-height: 62px;
+            padding: 0.6rem clamp(1rem, 3vw, 2rem);
+        }
+
+        .quiz-topbar h1 {
+            font-size: clamp(1rem, 2vw, 1.28rem);
+            letter-spacing: -0.03em;
+        }
+
+        .quiz-topbar p {
+            font-size: 0.78rem;
+        }
+
+        .quiz-content-area {
+            width: min(1120px, calc(100vw - 2rem));
+            height: calc(100dvh - 62px);
+            max-width: 1120px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0.75rem 1rem 0.9rem;
+            margin-inline: auto;
+        }
+
+        .quiz-brief {
+            display: none;
+        }
+
+        .quiz-engine {
+            height: 100%;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto 6px minmax(0, 1fr) auto;
+            gap: 0.62rem;
+        }
+
+        .quiz-top-row {
+            align-items: center;
+            padding: 0.25rem 0 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .quiz-top-row h3 {
+            margin-top: 0.22rem;
+            font-size: clamp(1.25rem, 2.6vw, 2rem);
+            line-height: 1.08;
+        }
+
+        .quiz-eyebrow {
+            font-size: 0.72rem;
+        }
+
+        .quiz-score-pill {
+            padding: 0.48rem 0.76rem;
+            border-radius: 16px;
+        }
+
+        .quiz-progress-track {
+            height: 6px;
+        }
+
+        .quiz-card {
+            height: 100%;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            overflow: hidden;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            padding: 0.1rem 0 0;
+        }
+
+        .quiz-card.is-correct,
+        .quiz-card.is-wrong {
+            box-shadow: none;
+        }
+
+        .quiz-type-badge {
+            width: fit-content;
+            margin-bottom: 0.35rem;
+            padding: 0.34rem 0.58rem;
+            font-size: 0.68rem;
+        }
+
+        .quiz-body {
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .study-shell {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.58rem;
+            animation: studyIn 0.32s ease both;
+        }
+
+        .study-shell > .quiz-prompt,
+        .video-question-panel > .quiz-prompt {
+            display: none;
+        }
+
+        .study-prompt-grid {
+            display: block;
+        }
+
+        .study-mentor {
+            display: none;
+        }
+
+        .study-phrase-card {
+            gap: 0.35rem;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            padding: 0.15rem 0 0.25rem;
+        }
+
+        .study-card-top {
+            justify-content: flex-start;
+            gap: 0.7rem;
+            font-size: 0.66rem;
+        }
+
+        .study-phrase {
+            font-size: clamp(2rem, 6vw, 4.35rem);
+            line-height: 0.98;
+        }
+
+        .audio-chip,
+        .answer-clear {
+            padding: 0.34rem 0.58rem;
+            font-size: 0.76rem;
+        }
+
+        .study-question-copy {
+            gap: 0.22rem;
+            padding-top: 0.05rem;
+        }
+
+        .answer-zone-label {
+            font-size: 0.68rem;
+        }
+
+        .quiz-question-text {
+            font-size: clamp(1.65rem, 4vw, 3rem);
+            line-height: 1.02;
+        }
+
+        .quiz-audio {
+            display: none;
+        }
+
+        .quiz-context-box,
+        .story-panel,
+        .word-match-board,
+        .listening-question-block {
+            border-radius: 14px;
+            padding: 0.7rem;
+        }
+
+        .answer-workbench {
+            flex: 1 1 auto;
+            height: 100%;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: 0.55rem;
+            margin-top: 0;
+            padding-top: 0.1rem;
+        }
+
+        .answer-zone {
+            gap: 0.38rem;
+            padding: 0.55rem 0 0.52rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.11);
+            border-bottom: 0;
+        }
+
+        .answer-zone-head {
+            min-height: 1.25rem;
+        }
+
+        .answer-slot {
+            min-height: 46px;
+            border-radius: 14px;
+            padding: 0.62rem 0.75rem;
+            font-size: 0.92rem;
+        }
+
+        .answer-option-bank {
+            align-content: start;
+            gap: 0.58rem;
+            min-height: 0;
+            max-height: 100%;
+            overflow-y: auto;
+            padding: 0.52rem 0 0.35rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.09);
+            scrollbar-width: thin;
+        }
+
+        .answer-token {
+            min-height: 46px;
+            border-radius: 14px;
+            padding: 0.62rem 0.78rem;
+            font-size: 0.9rem;
+            box-shadow: none;
+        }
+
+        .answer-action-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.13);
+            padding-top: 0.72rem;
+            margin-top: 0.1rem;
+        }
+
+        .skip-question-button,
+        .check-answer-button {
+            min-width: 158px;
+            border-radius: 16px;
+            padding: 0.78rem 1rem;
+        }
+
+        .quiz-feedback {
+            position: static;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin-top: 0.52rem;
+            padding: 0.68rem 0.78rem;
+            border-radius: 14px;
+        }
+
+        .quiz-finish-panel {
+            padding: 0.95rem;
+        }
+    }
+
+    @media (min-width: 761px) and (max-height: 760px) {
+        .quiz-topbar {
+            min-height: 54px;
+            padding-block: 0.45rem;
+        }
+
+        .quiz-content-area {
+            height: calc(100dvh - 54px);
+            padding-block: 0.5rem 0.65rem;
+        }
+
+        .quiz-engine {
+            gap: 0.45rem;
+        }
+
+        .quiz-top-row h3 {
+            font-size: clamp(1.08rem, 2.2vw, 1.65rem);
+        }
+
+        .study-phrase {
+            font-size: clamp(1.72rem, 5vw, 3.4rem);
+        }
+
+        .quiz-question-text {
+            font-size: clamp(1.35rem, 3.2vw, 2.25rem);
+        }
+
+        .answer-slot,
+        .answer-token {
+            min-height: 40px;
+            padding-block: 0.5rem;
+        }
+
+        .skip-question-button,
+        .check-answer-button {
+            padding-block: 0.68rem;
+        }
+    }
+
     @keyframes correctPulse {
         0% { transform: scale(1); }
         45% { transform: scale(1.012); }
@@ -914,6 +1572,25 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
+    @keyframes studyIn {
+        from { opacity: 0; transform: translateY(0.8rem); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes mentorFloat {
+        0%, 100% { transform: translateY(0) rotate(-1deg); }
+        50% { transform: translateY(-7px) rotate(1deg); }
+    }
+
+    @keyframes answerDrop {
+        from { opacity: 0; transform: translateY(-0.35rem) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
     @keyframes finishIn {
         from { opacity: 0; transform: translateY(1rem) scale(0.98); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -927,6 +1604,20 @@
 
         .word-match-grid {
             grid-template-columns: 1fr;
+        }
+
+        .study-prompt-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .study-mentor {
+            width: 68px;
+            border-radius: 22px;
+        }
+
+        .skip-question-button,
+        .check-answer-button {
+            width: 100%;
         }
     }
 </style>
@@ -1034,6 +1725,75 @@
             return [...items].sort(() => Math.random() - 0.5);
         };
 
+        let transientAudio = null;
+
+        const playAudioUrl = (url) => {
+            if (!url) {
+                return;
+            }
+
+            try {
+                transientAudio?.pause();
+                transientAudio = new Audio(url);
+                transientAudio.currentTime = 0;
+                transientAudio.play().catch(() => {});
+            } catch (error) {
+                // Audio is optional learning support, so a blocked file should not stop the quiz.
+            }
+        };
+
+        const attachAudioTriggers = (scope) => {
+            scope.querySelectorAll('[data-play-audio]').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    playAudioUrl(button.dataset.playAudio || '');
+                });
+            });
+        };
+
+        const quotedPhraseFromQuestion = (question) => {
+            const text = String(question?.questionText || '');
+            const quoted = text.match(/["“”']([^"“”']+)["“”']/);
+
+            return quoted?.[1] || '';
+        };
+
+        const translationFallback = (question) => {
+            const text = String(question?.questionText || '').toLowerCase();
+
+            if (text.includes('apa arti') || text.includes('what is the meaning')) {
+                return question?.correctAnswer || '';
+            }
+
+            return '';
+        };
+
+        const renderLearningFocus = (question) => {
+            const phrase = question.settings?.learningPhrase || quotedPhraseFromQuestion(question);
+            const translation = question.settings?.learningPhraseTranslation || translationFallback(question);
+            const audioUrl = question.settings?.learningPhraseAudioUrl || question.audioUrl || '';
+
+            if (!phrase && !translation && !audioUrl) {
+                return '';
+            }
+
+            return `
+                <div class="study-prompt-grid">
+                    <div class="study-mentor" aria-hidden="true">Yo</div>
+                    <div class="study-phrase-card">
+                        <div class="study-card-top">
+                            <span>Fokus bahasa asing</span>
+                            ${audioUrl ? `<button type="button" class="audio-chip" data-play-audio="${escapeHtml(audioUrl)}">Dengar</button>` : ''}
+                        </div>
+                        <button type="button" class="study-phrase" ${audioUrl ? `data-play-audio="${escapeHtml(audioUrl)}"` : ''}>
+                            ${escapeHtml(phrase || 'Dengarkan audio')}
+                            ${translation ? `<span class="translation-popover">${escapeHtml(translation)}</span>` : ''}
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
         const selectedAnswerText = (button) => {
             if (!button) {
                 return null;
@@ -1067,6 +1827,200 @@
             }
 
             questionResultsInput.value = JSON.stringify(Array.from(questionResults.values()));
+        };
+
+        const renderAnswerWorkspace = (question) => {
+            if (!question.options || question.options.length === 0) {
+                return `
+                    <div class="answer-workbench" data-answer-workbench data-empty-workbench="true">
+                        <p class="quiz-prompt">Belum ada opsi jawaban untuk soal ini.</p>
+                        <div class="answer-action-bar">
+                            <button type="button" class="skip-question-button" data-skip-question>Lompati</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const options = shuffle(question.options);
+
+            return `
+                <div class="answer-workbench" data-answer-workbench>
+                    <div class="answer-zone">
+                        <div class="answer-zone-head">
+                            <span class="answer-zone-label">Kolom jawaban</span>
+                            <button type="button" class="answer-clear" data-clear-answer hidden>Ganti jawaban</button>
+                        </div>
+                        <div class="answer-slot" data-answer-slot>Pilih jawaban dari opsi di bawah.</div>
+                    </div>
+
+                    <div class="answer-option-bank">
+                        ${options.map((option, optionIndex) => `
+                            <button
+                                type="button"
+                                class="answer-token"
+                                data-choice-token
+                                data-correct="${option.isCorrect ? 'true' : 'false'}"
+                                data-audio-url="${escapeHtml(option.audioUrl || '')}"
+                            >
+                                <span data-option-text>${escapeHtml(option.text)}</span>
+                                ${option.audioUrl ? '<small>Audio</small>' : ''}
+                                ${option.imageUrl ? `<img src="${escapeHtml(option.imageUrl)}" alt="Gambar opsi">` : ''}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <div class="answer-action-bar">
+                        <button type="button" class="skip-question-button" data-skip-question>Lompati</button>
+                        <button type="button" class="check-answer-button" data-check-answer disabled>Periksa</button>
+                    </div>
+                </div>
+            `;
+        };
+
+        const attachAnswerWorkspaceEvents = (question, scope = questionBody) => {
+            const workspace = scope.querySelector('[data-answer-workbench]');
+
+            if (!workspace) {
+                return;
+            }
+
+            const slot = workspace.querySelector('[data-answer-slot]');
+            const clearButton = workspace.querySelector('[data-clear-answer]');
+            const checkButton = workspace.querySelector('[data-check-answer]');
+            const skipButton = workspace.querySelector('[data-skip-question]');
+            const tokens = Array.from(workspace.querySelectorAll('[data-choice-token]'));
+            let selected = null;
+
+            if (!slot || !clearButton || !checkButton) {
+                skipButton?.addEventListener('click', () => {
+                    if (locked) {
+                        return;
+                    }
+
+                    locked = true;
+                    recordQuestionResult(question, false, 'skipped');
+                    syncQuestionResults();
+                    showFeedback(false, 'Soal dilewati karena belum memiliki opsi jawaban.');
+
+                    window.setTimeout(() => {
+                        locked = false;
+                        goNext();
+                    }, 520);
+                });
+
+                return;
+            }
+
+            const resetSelection = () => {
+                selected = null;
+                slot.textContent = 'Pilih jawaban dari opsi di bawah.';
+                slot.classList.remove('is-filled');
+                clearButton.hidden = true;
+                checkButton.disabled = true;
+                tokens.forEach((token) => token.classList.remove('is-selected', 'is-wrong'));
+            };
+
+            tokens.forEach((token) => {
+                token.addEventListener('click', () => {
+                    if (locked) {
+                        return;
+                    }
+
+                    tokens.forEach((item) => item.classList.remove('is-selected', 'is-wrong'));
+                    token.classList.add('is-selected');
+
+                    const optionText = token.querySelector('[data-option-text]')?.textContent?.trim() || token.textContent.trim();
+                    selected = {
+                        button: token,
+                        text: optionText,
+                        isCorrect: token.dataset.correct === 'true',
+                    };
+
+                    slot.textContent = optionText;
+                    slot.classList.add('is-filled');
+                    clearButton.hidden = false;
+                    checkButton.disabled = false;
+                    playAudioUrl(token.dataset.audioUrl || '');
+                });
+            });
+
+            clearButton.addEventListener('click', () => {
+                if (!locked) {
+                    resetSelection();
+                }
+            });
+
+            skipButton.addEventListener('click', () => {
+                if (locked) {
+                    return;
+                }
+
+                locked = true;
+                recordQuestionResult(question, false, 'skipped');
+                syncQuestionResults();
+                showFeedback(false, 'Soal dilewati. Kamu bisa lanjut dan mengulang level ini nanti.');
+
+                window.setTimeout(() => {
+                    locked = false;
+                    goNext();
+                }, 520);
+            });
+
+            checkButton.addEventListener('click', () => {
+                if (locked || !selected) {
+                    return;
+                }
+
+                locked = true;
+                workspace.classList.add('is-checking');
+                checkButton.classList.add('is-loading');
+                checkButton.textContent = 'Memeriksa...';
+                checkButton.disabled = true;
+                skipButton.disabled = true;
+                tokens.forEach((token) => {
+                    token.disabled = true;
+                });
+
+                recordQuestionResult(question, selected.isCorrect, selected.text);
+                syncQuestionResults();
+
+                window.setTimeout(() => {
+                    workspace.classList.remove('is-checking');
+                    checkButton.classList.remove('is-loading');
+                    checkButton.textContent = 'Periksa';
+
+                    if (selected.isCorrect) {
+                        selected.button.classList.add('is-correct');
+                        correctCount += 1;
+                        correctCountNode.textContent = correctCount;
+                        correctInput.value = correctCount;
+                        showFeedback(true, question.explanation ? `Benar. ${question.explanation}` : 'Benar. Lanjut ke soal berikutnya.');
+
+                        window.setTimeout(() => {
+                            locked = false;
+                            goNext();
+                        }, 950);
+
+                        return;
+                    }
+
+                    selected.button.classList.add('is-wrong');
+                    showFeedback(false, question.explanation ? `Belum tepat. ${question.explanation}` : 'Belum tepat. Coba pilih jawaban lain.');
+
+                    window.setTimeout(() => {
+                        tokens.forEach((token) => {
+                            token.disabled = false;
+                            token.classList.remove('is-selected', 'is-wrong');
+                        });
+                        skipButton.disabled = false;
+                        questionCard.classList.remove('is-wrong');
+                        feedback.className = 'quiz-feedback';
+                        feedback.textContent = '';
+                        locked = false;
+                        resetSelection();
+                    }, 1600);
+                }, 2000);
+            });
         };
 
         const recordAdImpression = (ad) => {
@@ -1330,19 +2284,19 @@
             questionBody.innerHTML = `
                 <div class="video-question-panel ${mustWatchSeconds > 0 ? 'is-locked' : ''}" data-video-question-panel>
                     <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
+                    ${renderLearningFocus(question)}
                     <div class="video-frame">${videoMarkup}</div>
                     <p class="video-question-status" data-video-status>
                         ${mustWatchSeconds > 0 ? `Pilihan jawaban terbuka dalam ${mustWatchSeconds} detik.` : 'Jawab pertanyaan setelah menonton video.'}
                     </p>
                     ${question.settings?.videoTranscript ? `<div class="quiz-context-box"><strong>Catatan Video</strong><p>${escapeHtml(question.settings.videoTranscript)}</p></div>` : ''}
                     <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
-                    <div data-video-options>
-                        ${renderOptions(question)}
-                    </div>
+                    ${renderAnswerWorkspace(question)}
                 </div>
             `;
 
-            attachOptionEvents(question);
+            attachAudioTriggers(questionBody);
+            attachAnswerWorkspaceEvents(question);
 
             if (mustWatchSeconds <= 0) {
                 return;
@@ -1377,26 +2331,28 @@
                 ? `<div class="quiz-context-box"><strong>Konteks</strong><p>${escapeHtml(question.settings.scenarioContext)}</p></div>`
                 : '';
 
-            const idealResponse = question.settings?.idealResponse
-                ? `<div class="quiz-context-box"><strong>Respons Ideal</strong><p>${escapeHtml(question.settings.idealResponse)}</p></div>`
-                : '';
-
             const mixNote = question.settings?.mixNote
                 ? `<div class="quiz-context-box"><strong>Catatan</strong><p>${escapeHtml(question.settings.mixNote)}</p></div>`
                 : '';
 
             questionBody.innerHTML = `
-                <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
-                ${context}
-                ${question.audioUrl ? `<audio class="quiz-audio" controls src="${question.audioUrl}"></audio>` : ''}
-                ${question.imageUrl ? `<img class="quiz-image" src="${question.imageUrl}" alt="Gambar soal">` : ''}
-                <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
-                ${idealResponse}
-                ${mixNote}
-                ${renderOptions(question)}
+                <div class="study-shell">
+                    <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
+                    ${context}
+                    ${renderLearningFocus(question)}
+                    ${question.audioUrl ? `<audio class="quiz-audio" controls src="${question.audioUrl}"></audio>` : ''}
+                    ${question.imageUrl ? `<img class="quiz-image" src="${question.imageUrl}" alt="Gambar soal">` : ''}
+                    <div class="study-question-copy">
+                        <span class="answer-zone-label">Pertanyaan</span>
+                        <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
+                    </div>
+                    ${mixNote}
+                    ${renderAnswerWorkspace(question)}
+                </div>
             `;
 
-            attachOptionEvents(question);
+            attachAudioTriggers(questionBody);
+            attachAnswerWorkspaceEvents(question);
         };
 
         const playHiddenAudio = (audioElement, onEnded, onBlocked) => {

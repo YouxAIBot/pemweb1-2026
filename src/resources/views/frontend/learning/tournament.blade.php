@@ -41,11 +41,22 @@
                     @csrf
                     <input type="hidden" name="duration_seconds" value="0" data-duration-input>
 
+                    <div class="tournament-play-head">
+                        <div>
+                            <small>Soal <b data-current-question>1</b> / <b>{{ $questions->count() }}</b></small>
+                            <h3 data-active-question-title>Jawab secepat mungkin.</h3>
+                        </div>
+                        <div class="tournament-speed-pill"><span data-answered-count>0</span> terjawab</div>
+                    </div>
+
+                    <div class="tournament-progress-track">
+                        <span data-tournament-progress style="width:0%"></span>
+                    </div>
+
                     @foreach ($questions as $question)
-                        <section class="tournament-question">
+                        <section class="tournament-question" data-tournament-question data-question-index="{{ $loop->index }}" {{ $loop->first ? '' : 'hidden' }}>
                             <input type="hidden" name="question_ids[]" value="{{ $question->id }}">
                             <div class="tournament-question-head">
-                                <span>{{ $loop->iteration }}</span>
                                 <h3>{{ $question->question_text ?: $question->instruction }}</h3>
                             </div>
 
@@ -60,9 +71,12 @@
                         </section>
                     @endforeach
 
-                    <button type="submit" class="tournament-submit">
-                        Selesai & Simpan Skor
-                    </button>
+                    <div class="tournament-action-bar">
+                        <button type="button" class="tournament-skip" data-skip-tournament>Lompati</button>
+                        <button type="submit" class="tournament-submit" data-submit-tournament hidden>
+                            Selesai & Simpan Skor
+                        </button>
+                    </div>
                 </form>
             @endif
 
@@ -103,6 +117,12 @@
         min-height: 100vh;
         background: #0b0f17;
         color: var(--text);
+    }
+
+    html.tournament-focus-active,
+    html.tournament-focus-active body {
+        height: 100%;
+        overflow: hidden;
     }
 
     .tournament-panel {
@@ -209,9 +229,59 @@
         overflow: hidden;
     }
 
+    .tournament-play-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .tournament-play-head small {
+        color: var(--cyan);
+        font-size: 0.74rem;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .tournament-play-head h3 {
+        margin-top: 0.25rem;
+        font-size: clamp(1.2rem, 3vw, 1.8rem);
+        letter-spacing: -0.04em;
+    }
+
+    .tournament-speed-pill {
+        border: 1px solid rgba(102, 232, 247, 0.2);
+        border-radius: 999px;
+        background: rgba(102, 232, 247, 0.08);
+        padding: 0.55rem 0.8rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .tournament-progress-track {
+        height: 7px;
+        background: rgba(255, 255, 255, 0.07);
+        overflow: hidden;
+    }
+
+    .tournament-progress-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--cyan), var(--primary));
+        transition: width 0.25s ease;
+    }
+
     .tournament-question {
         padding: 1.05rem;
         border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .tournament-question[hidden] {
+        display: none;
     }
 
     .tournament-question-head {
@@ -263,19 +333,138 @@
     }
 
     .tournament-options input {
-        accent-color: #66e8f7;
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .tournament-action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tournament-submit,
+    .tournament-skip {
+        min-width: 160px;
+        border: 0;
+        border-radius: 18px;
+        padding: 0.9rem 1.05rem;
+        font-weight: 950;
+        cursor: pointer;
     }
 
     .tournament-submit {
-        width: calc(100% - 2rem);
-        margin: 1rem;
-        border: 0;
-        border-radius: 999px;
         background: linear-gradient(135deg, var(--cyan), var(--primary));
         color: #07101f;
-        padding: 0.95rem 1.1rem;
-        font-weight: 950;
-        cursor: pointer;
+    }
+
+    .tournament-skip {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #cbd5e1;
+    }
+
+    .tournament-frame.is-playing {
+        height: 100dvh;
+        min-height: 100dvh;
+        overflow: hidden;
+    }
+
+    .tournament-frame.is-playing .tournament-panel {
+        height: 100dvh;
+        min-height: 100dvh;
+        overflow: hidden;
+    }
+
+    .tournament-frame.is-playing .tournament-topbar {
+        position: relative;
+        min-height: 58px;
+        padding: 0.55rem clamp(1rem, 3vw, 2rem);
+    }
+
+    .tournament-frame.is-playing .tournament-topbar h1 {
+        font-size: 1.02rem;
+    }
+
+    .tournament-frame.is-playing .tournament-topbar p,
+    .tournament-frame.is-playing .tournament-hero,
+    .tournament-frame.is-playing .tournament-result,
+    .tournament-frame.is-playing .leaderboard-simple {
+        display: none;
+    }
+
+    .tournament-frame.is-playing .tournament-wrap {
+        width: min(980px, calc(100% - 2rem));
+        height: calc(100dvh - 58px);
+        display: flex;
+        flex-direction: column;
+        padding: 0.75rem 0 0.9rem;
+        overflow: hidden;
+    }
+
+    .tournament-frame.is-playing .tournament-sheet {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 7px minmax(0, 1fr) auto;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .tournament-frame.is-playing .tournament-play-head {
+        padding: 0.2rem 0 0.55rem;
+        border-bottom: 0;
+    }
+
+    .tournament-frame.is-playing .tournament-question {
+        min-height: 0;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        padding: 0.75rem 0 0;
+        border-bottom: 0;
+        overflow: hidden;
+    }
+
+    .tournament-frame.is-playing .tournament-question[hidden] {
+        display: none;
+    }
+
+    .tournament-frame.is-playing .tournament-question-head {
+        min-height: 0;
+        overflow-y: auto;
+        align-items: center;
+        margin-bottom: 0;
+        scrollbar-width: thin;
+    }
+
+    .tournament-frame.is-playing .tournament-question h3 {
+        font-size: clamp(1.65rem, 5vw, 3.2rem);
+        line-height: 1.04;
+    }
+
+    .tournament-frame.is-playing .tournament-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+        padding-top: 0.72rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .tournament-frame.is-playing .tournament-options label {
+        min-height: 54px;
+        border-radius: 16px;
+        padding: 0.78rem 0.9rem;
+    }
+
+    .tournament-frame.is-playing .tournament-action-bar {
+        padding: 0.75rem 0 0;
     }
 
     .leaderboard-title,
@@ -331,6 +520,39 @@
             align-items: flex-start;
             flex-direction: column;
         }
+
+        .tournament-frame.is-playing .tournament-topbar {
+            align-items: center;
+            flex-direction: row;
+            min-height: 54px;
+        }
+
+        .tournament-frame.is-playing .tournament-wrap {
+            width: min(100% - 1rem, 980px);
+            height: calc(100dvh - 54px);
+            padding-block: 0.55rem 0.7rem;
+        }
+
+        .tournament-frame.is-playing .tournament-options {
+            grid-template-columns: 1fr;
+        }
+
+        .tournament-play-head,
+        .tournament-action-bar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .tournament-frame.is-playing .tournament-play-head,
+        .tournament-frame.is-playing .tournament-action-bar {
+            align-items: center;
+            flex-direction: row;
+        }
+
+        .tournament-submit,
+        .tournament-skip {
+            min-width: 120px;
+        }
     }
 </style>
 @endpush
@@ -344,12 +566,77 @@
             return;
         }
 
+        const frame = document.querySelector('.tournament-frame');
+        const questions = Array.from(form.querySelectorAll('[data-tournament-question]'));
+        const currentQuestion = form.querySelector('[data-current-question]');
+        const activeQuestionTitle = form.querySelector('[data-active-question-title]');
+        const answeredCount = form.querySelector('[data-answered-count]');
+        const progress = form.querySelector('[data-tournament-progress]');
+        const skipButton = form.querySelector('[data-skip-tournament]');
+        const submitButton = form.querySelector('[data-submit-tournament]');
         const startedAt = Date.now();
         const durationInput = form.querySelector('[data-duration-input]');
+        const answered = new Set();
+        let activeIndex = 0;
+
+        frame?.classList.add('is-playing');
+        document.documentElement.classList.add('tournament-focus-active');
+
+        const updateState = () => {
+            questions.forEach((question, index) => {
+                question.hidden = index !== activeIndex;
+            });
+
+            const isLast = activeIndex >= questions.length - 1;
+
+            currentQuestion.textContent = String(Math.min(activeIndex + 1, questions.length));
+            activeQuestionTitle.textContent = isLast ? 'Soal terakhir, simpan skor setelah menjawab.' : 'Pilih jawaban paling tepat.';
+            answeredCount.textContent = String(answered.size);
+            progress.style.width = `${questions.length === 0 ? 0 : (answered.size / questions.length) * 100}%`;
+            skipButton.hidden = isLast;
+            submitButton.hidden = !isLast;
+        };
+
+        const goNext = () => {
+            if (activeIndex < questions.length - 1) {
+                activeIndex += 1;
+                updateState();
+            }
+        };
+
+        questions.forEach((question, index) => {
+            question.querySelectorAll('label').forEach((label) => {
+                const input = label.querySelector('input');
+
+                label.addEventListener('click', () => {
+                    answered.add(index);
+                    window.setTimeout(() => {
+                        if (index < questions.length - 1) {
+                            goNext();
+                        } else {
+                            updateState();
+                        }
+                    }, 420);
+                });
+
+                input?.addEventListener('change', () => {
+                    question.querySelectorAll('label').forEach((item) => item.classList.remove('is-selected'));
+                    label.classList.add('is-selected');
+                });
+            });
+        });
+
+        skipButton?.addEventListener('click', () => {
+            answered.add(activeIndex);
+            goNext();
+        });
 
         form.addEventListener('submit', () => {
             durationInput.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+            document.documentElement.classList.remove('tournament-focus-active');
         });
+
+        updateState();
     })();
 </script>
 @endpush
