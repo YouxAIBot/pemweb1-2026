@@ -446,7 +446,7 @@
     const startPolling = () => {
         window.clearInterval(poller);
         poller = window.setInterval(async () => {
-            const res = await fetch('{{ route('learning.duel.queue.status') }}', {
+            const res = await fetch('/turnamen/duel/queue-status', {
                 headers: { 'Accept': 'application/json' }
             });
             const payload = await res.json();
@@ -471,7 +471,7 @@
 
         const formData = new FormData(form);
 
-        const res = await fetch('{{ route('learning.duel.find') }}', {
+        const res = await fetch('/turnamen/duel/find-match', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': csrf,
@@ -497,7 +497,7 @@
     });
 
     cancelBtn?.addEventListener('click', async () => {
-        await fetch('{{ route('learning.duel.queue.cancel') }}', {
+        await fetch('/turnamen/duel/cancel-queue', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': csrf,
