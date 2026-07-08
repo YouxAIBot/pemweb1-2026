@@ -234,6 +234,87 @@ it('activates premium from a fake Midtrans settlement notification', function ()
         ->assertJson(['status' => PremiumPayment::STATUS_APPROVED]);
 
     expect($user->fresh()->isPremium())->toBeTrue();
+
+    $this->postJson(route('api.midtrans.premium.notification'), $payload)
+        ->assertOk()
+        ->assertJson(['status' => PremiumPayment::STATUS_APPROVED]);
+
+    expect(UserPremium::where('user_id', $user->id)->where('premium_payment_id', $payment->id)->count())->toBe(1);
+});
+
+it('activates premium from a Midtrans capture notification without fraud status', function () {
+    config(['services.midtrans.server_key' => 'midtrans-secret']);
+
+    $user = User::factory()->create();
+    $package = PremiumPackage::create([
+        'name' => 'Premium Bulanan',
+        'slug' => 'premium-capture',
+        'price' => 25000,
+        'duration_days' => 30,
+        'is_active' => true,
+    ]);
+    $payment = PremiumPayment::create([
+        'user_id' => $user->id,
+        'premium_package_id' => $package->id,
+        'payment_code' => 'PRM-MIDTRANS-CAPTURE',
+        'payment_method' => 'midtrans_snap',
+        'amount' => 25000,
+        'payment_status' => PremiumPayment::STATUS_PENDING,
+        'gateway' => 'midtrans',
+        'gateway_order_id' => 'PRM-MIDTRANS-CAPTURE',
+    ]);
+    $payload = [
+        'order_id' => $payment->gateway_order_id,
+        'status_code' => '200',
+        'gross_amount' => '25000.00',
+        'transaction_status' => 'capture',
+        'transaction_id' => 'trx-test-capture',
+    ];
+    $payload['signature_key'] = hash('sha512', $payload['order_id'] . $payload['status_code'] . $payload['gross_amount'] . 'midtrans-secret');
+
+    $this->postJson(route('api.midtrans.premium.notification'), $payload)
+        ->assertOk()
+        ->assertJson(['status' => PremiumPayment::STATUS_APPROVED]);
+
+    expect($user->fresh()->isPremium())->toBeTrue();
+});
+
+it('rejects Midtrans notifications when gross amount does not match payment amount', function () {
+    config(['services.midtrans.server_key' => 'midtrans-secret']);
+
+    $user = User::factory()->create();
+    $package = PremiumPackage::create([
+        'name' => 'Premium Bulanan',
+        'slug' => 'premium-invalid-amount',
+        'price' => 25000,
+        'duration_days' => 30,
+        'is_active' => true,
+    ]);
+    $payment = PremiumPayment::create([
+        'user_id' => $user->id,
+        'premium_package_id' => $package->id,
+        'payment_code' => 'PRM-MIDTRANS-AMOUNT',
+        'payment_method' => 'midtrans_snap',
+        'amount' => 25000,
+        'payment_status' => PremiumPayment::STATUS_PENDING,
+        'gateway' => 'midtrans',
+        'gateway_order_id' => 'PRM-MIDTRANS-AMOUNT',
+    ]);
+    $payload = [
+        'order_id' => $payment->gateway_order_id,
+        'status_code' => '200',
+        'gross_amount' => '1000.00',
+        'transaction_status' => 'settlement',
+        'transaction_id' => 'trx-test-invalid-amount',
+    ];
+    $payload['signature_key'] = hash('sha512', $payload['order_id'] . $payload['status_code'] . $payload['gross_amount'] . 'midtrans-secret');
+
+    $this->postJson(route('api.midtrans.premium.notification'), $payload)
+        ->assertForbidden()
+        ->assertJson(['message' => 'Nominal pembayaran Midtrans tidak sesuai.']);
+
+    expect($payment->fresh()->payment_status)->toBe(PremiumPayment::STATUS_PENDING);
+    expect($user->fresh()->isPremium())->toBeFalse();
 });
 
 it('stores quiz room history and awards quiz scores', function () {

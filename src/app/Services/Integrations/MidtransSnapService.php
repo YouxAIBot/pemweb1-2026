@@ -32,6 +32,9 @@ class MidtransSnapService
                 'order_id' => $payment->gateway_order_id ?: $payment->payment_code,
                 'gross_amount' => (int) $payment->amount,
             ],
+            'credit_card' => [
+                'secure' => (bool) config('services.midtrans.is_3ds', true),
+            ],
             'customer_details' => [
                 'first_name' => $payment->user?->name ?? 'YoLearning User',
                 'email' => $payment->user?->email,
@@ -82,6 +85,8 @@ class MidtransSnapService
             return null;
         }
 
+        $this->assertMatchingAmount($payment, $payload);
+
         $transactionStatus = (string) Arr::get($payload, 'transaction_status');
         $fraudStatus = (string) Arr::get($payload, 'fraud_status');
 
@@ -91,18 +96,17 @@ class MidtransSnapService
             'gateway_response' => $payload,
         ]);
 
-        if ($transactionStatus === 'settlement' || ($transactionStatus === 'capture' && $fraudStatus === 'accept')) {
-            $payment->update([
-                'payment_status' => PremiumPayment::STATUS_PAID,
-                'paid_at' => $payment->paid_at ?? now(),
-            ]);
+        if ($payment->payment_status === PremiumPayment::STATUS_APPROVED) {
+            return $payment->refresh();
+        }
 
+        if ($this->isSuccessfulPayment($transactionStatus, $fraudStatus, $payload)) {
             $this->activationService->approve($payment->refresh(), null, 'Pembayaran otomatis aktif via Midtrans.');
 
             return $payment->refresh();
         }
 
-        if (in_array($transactionStatus, ['cancel', 'deny'], true)) {
+        if (in_array($transactionStatus, ['cancel', 'deny', 'failure'], true)) {
             $payment->update([
                 'payment_status' => PremiumPayment::STATUS_REJECTED,
                 'rejected_at' => now(),
@@ -136,6 +140,52 @@ class MidtransSnapService
         ]));
 
         return hash_equals($expected, $signature);
+    }
+
+    private function assertMatchingAmount(PremiumPayment $payment, array $payload): void
+    {
+        $grossAmount = Arr::get($payload, 'gross_amount');
+
+        if ($grossAmount === null) {
+            throw new RuntimeException('Nominal Midtrans tidak ditemukan.');
+        }
+
+        $midtransAmount = $this->normalizeAmount($grossAmount);
+
+        if ($midtransAmount !== (int) $payment->amount) {
+            $payment->update([
+                'gateway_transaction_id' => Arr::get($payload, 'transaction_id'),
+                'gateway_status' => Arr::get($payload, 'transaction_status'),
+                'gateway_response' => $payload,
+                'note' => 'Notifikasi Midtrans diabaikan karena nominal tidak sesuai.',
+            ]);
+
+            throw new RuntimeException('Nominal pembayaran Midtrans tidak sesuai.');
+        }
+    }
+
+    private function isSuccessfulPayment(string $transactionStatus, string $fraudStatus, array $payload): bool
+    {
+        $statusCode = (string) Arr::get($payload, 'status_code');
+
+        return $statusCode === '200'
+            && in_array($transactionStatus, ['settlement', 'capture'], true)
+            && ($fraudStatus === '' || $fraudStatus === 'accept');
+    }
+
+    private function normalizeAmount(mixed $amount): int
+    {
+        if (is_int($amount)) {
+            return $amount;
+        }
+
+        if (is_float($amount)) {
+            return (int) round($amount);
+        }
+
+        $cleanAmount = str_replace(',', '', trim((string) $amount));
+
+        return (int) round((float) $cleanAmount);
     }
 
     private function snapEndpoint(): string

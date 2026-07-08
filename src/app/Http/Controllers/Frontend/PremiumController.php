@@ -98,6 +98,18 @@ class PremiumController extends Controller
             ->active()
             ->findOrFail($data['premium_package_id']);
 
+        $existingPending = PremiumPayment::query()
+            ->where('user_id', $request->user()->id)
+            ->where('premium_package_id', $package->id)
+            ->where('payment_method', 'midtrans_snap')
+            ->where('payment_status', PremiumPayment::STATUS_PENDING)
+            ->latest()
+            ->first();
+
+        if ($existingPending && filled($existingPending->snap_redirect_url)) {
+            return redirect()->away($existingPending->snap_redirect_url);
+        }
+
         $paymentCode = $this->makePaymentCode($request->user()->id);
         $payment = PremiumPayment::create([
             'user_id' => $request->user()->id,

@@ -11,11 +11,18 @@ API pihak ketiga yang diterapkan:
    - Untuk translate teks.
    - Cocok untuk hint, pembahasan, bahan soal, atau validasi terjemahan manual.
 
+3. Midtrans Snap Sandbox
+   - Untuk pembayaran premium otomatis.
+   - User diarahkan ke halaman Snap Midtrans.
+   - Premium aktif otomatis setelah webhook Midtrans valid.
+
 File yang ditambahkan:
 - `src/app/Services/Integrations/GoogleTextToSpeechService.php`
 - `src/app/Services/Integrations/DeepLTranslationService.php`
+- `src/app/Services/Integrations/MidtransSnapService.php`
 - `src/app/Filament/Admin/Pages/ApiIntegrationTools.php`
 - `src/resources/views/filament/admin/pages/api-integration-tools.blade.php`
+- `README_MIDTRANS_SANDBOX.md`
 
 File yang diubah:
 - `src/config/services.php`
@@ -38,6 +45,12 @@ GOOGLE_TTS_DEFAULT_VOICE=en-US-Neural2-C
 DEEPL_API_KEY=
 DEEPL_ENDPOINT=https://api-free.deepl.com/v2/translate
 DEEPL_DEFAULT_TARGET_LANG=EN
+
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+MIDTRANS_IS_PRODUCTION=false
+MIDTRANS_IS_SANITIZED=true
+MIDTRANS_IS_3DS=true
 ```
 
 Setelah extract:

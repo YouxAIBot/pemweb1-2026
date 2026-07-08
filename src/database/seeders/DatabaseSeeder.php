@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
             GameModeSeeder::class,
             LearningCmsSeeder::class,
             StarterLanguageQuestionBankSeeder::class,
+            ExpandedLanguageContentSeeder::class,
+            VariedLanguagePracticeSeeder::class,
+            StoryLanguageQuestionSeeder::class,
             PremiumSeeder::class,
         ]);
     }

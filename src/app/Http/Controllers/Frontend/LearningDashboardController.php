@@ -520,16 +520,12 @@ class LearningDashboardController extends Controller
             return redirect()->route('learning.onboarding');
         }
 
-        $questions = LearningQuestion::query()
-            ->active()
-            ->whereHas('level.part', function ($query) use ($profile) {
-                $query->where('learning_language_id', $profile->learning_language_id);
-            })
-            ->whereHas('options')
-            ->with(['options' => fn ($query) => $query->orderBy('sort_order')])
-            ->inRandomOrder()
-            ->limit(5)
-            ->get();
+        $questions = $this->randomLearningQuestionsForMode(
+            (int) $profile->learning_language_id,
+            (int) $user->id,
+            'tournament',
+            5,
+        );
 
         $leaderboard = TournamentAttempt::query()
             ->with('user')
@@ -774,6 +770,66 @@ class LearningDashboardController extends Controller
                 'total_questions' => $attempt->total_questions,
                 'duration_seconds' => $attempt->duration_seconds,
             ]);
+    }
+
+    private function randomLearningQuestionsForMode(int $languageId, int $userId, string $mode, int $limit)
+    {
+        $baseQuery = LearningQuestion::query()
+            ->active()
+            ->whereHas('level.part', function ($query) use ($languageId) {
+                $query->where('learning_language_id', $languageId);
+            })
+            ->whereDoesntHave('level.part', function ($query) {
+                $query->where('slug', 'bagian-4-cerita-pendek');
+            })
+            ->whereHas('options')
+            ->with(['options' => fn ($query) => $query->orderBy('sort_order')]);
+
+        $recentQuestionIds = $this->recentAttemptQuestionIds($userId, $languageId, $mode);
+
+        $questions = (clone $baseQuery)
+            ->when($recentQuestionIds !== [], fn ($query) => $query->whereNotIn('id', $recentQuestionIds))
+            ->inRandomOrder()
+            ->limit($limit)
+            ->get();
+
+        if ($questions->count() < $limit) {
+            $fallbackQuestions = (clone $baseQuery)
+                ->whereNotIn('id', $questions->pluck('id')->all())
+                ->inRandomOrder()
+                ->limit($limit - $questions->count())
+                ->get();
+
+            $questions = $questions->concat($fallbackQuestions)->values();
+        }
+
+        return $this->shuffleQuestionOptions($questions);
+    }
+
+    private function recentAttemptQuestionIds(int $userId, int $languageId, string $mode): array
+    {
+        return TournamentAttempt::query()
+            ->where('user_id', $userId)
+            ->where('learning_language_id', $languageId)
+            ->where('mode', $mode)
+            ->latest()
+            ->take(3)
+            ->get()
+            ->flatMap(fn (TournamentAttempt $attempt) => collect($attempt->answers ?? [])->pluck('question_id'))
+            ->filter()
+            ->map(fn ($questionId) => (int) $questionId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function shuffleQuestionOptions($questions)
+    {
+        return $questions->map(function (LearningQuestion $question) {
+            $question->setRelation('options', $question->options->shuffle()->values());
+
+            return $question;
+        });
     }
 
     private function abilityOptions(): array
