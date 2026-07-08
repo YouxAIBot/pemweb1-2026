@@ -21,6 +21,9 @@ use Illuminate\View\View;
 
 class DuelController extends Controller
 {
+    private const QUEUE_STALE_SECONDS = 20;
+    private const MATCHED_QUEUE_STALE_SECONDS = 45;
+
     public function lobby(Request $request): View|RedirectResponse
     {
         $user = $request->user();
@@ -119,6 +122,7 @@ class DuelController extends Controller
                 ->where('user_id', $user->id)
                 ->where('status', 'matched')
                 ->whereNotNull('duel_session_id')
+                ->where('updated_at', '>=', now()->subSeconds(self::MATCHED_QUEUE_STALE_SECONDS))
                 ->latest()
                 ->lockForUpdate()
                 ->first();
@@ -136,7 +140,7 @@ class DuelController extends Controller
 
             DuelMatchmakingQueue::query()
                 ->where('status', 'waiting')
-                ->where('updated_at', '<', now()->subMinutes(2))
+                ->where('updated_at', '<', now()->subSeconds(self::QUEUE_STALE_SECONDS))
                 ->update(['status' => 'expired']);
 
             $existingWaiting = DuelMatchmakingQueue::query()
@@ -150,7 +154,7 @@ class DuelController extends Controller
                 $existingWaiting
                 && (int) $existingWaiting->learning_language_id === (int) $languageId
                 && $existingWaiting->difficulty === $difficulty
-                && $existingWaiting->updated_at?->gte(now()->subMinutes(2))
+                && $existingWaiting->updated_at?->gte(now()->subSeconds(self::QUEUE_STALE_SECONDS))
             ) {
                 $existingWaiting->touch();
 
@@ -165,6 +169,7 @@ class DuelController extends Controller
                 ->where('status', 'waiting')
                 ->where('user_id', '!=', $user->id)
                 ->where('difficulty', $difficulty)
+                ->where('updated_at', '>=', now()->subSeconds(self::QUEUE_STALE_SECONDS))
                 ->when($languageId, fn ($query) => $query->where('learning_language_id', $languageId))
                 ->oldest()
                 ->lockForUpdate()
@@ -268,7 +273,7 @@ class DuelController extends Controller
             ]);
         }
 
-        if ($queue->updated_at?->lt(now()->subMinutes(2))) {
+        if ($queue->updated_at?->lt(now()->subSeconds(self::QUEUE_STALE_SECONDS))) {
             $queue->update(['status' => 'expired']);
 
             return response()->json(['status' => 'expired']);
