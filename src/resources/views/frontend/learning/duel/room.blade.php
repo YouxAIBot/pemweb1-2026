@@ -4,10 +4,10 @@
 
 @section('content')
 <div class="duel-room-page"
-    data-state-url="{{ route('api.duel.state', $session) }}"
-    data-answer-url="{{ route('api.duel.answer', $session) }}"
-    data-finish-url="{{ route('api.duel.finish', $session) }}"
-    data-lobby-url="{{ route('learning.duel.lobby') }}"
+    data-state-url="/api/turnamen/duel/{{ $session->id }}/state"
+    data-answer-url="/api/turnamen/duel/{{ $session->id }}/answer"
+    data-finish-url="/api/turnamen/duel/{{ $session->id }}/finish"
+    data-lobby-url="/turnamen/duel"
     data-csrf="{{ csrf_token() }}"
 >
     <header class="duel-room-top">
