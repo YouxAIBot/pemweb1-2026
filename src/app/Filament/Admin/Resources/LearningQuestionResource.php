@@ -119,8 +119,6 @@ class LearningQuestionResource extends Resource
                 static::wordMatchSection(),
                 static::sentenceOrderSection(),
                 static::readingStorySection(),
-                static::realCaseSection(),
-                static::videoQuestionSection(),
                 static::mixedSection(),
                 static::learningAidSection(),
 
@@ -151,8 +149,6 @@ class LearningQuestionResource extends Resource
                 'word_match',
                 'sentence_order',
                 'reading_story',
-                'real_case',
-                'video_question',
                 'mixed',
             ], true))
             ->schema([
@@ -222,145 +218,65 @@ class LearningQuestionResource extends Resource
     private static function listeningSection(): Forms\Components\Section
     {
         return Forms\Components\Section::make('Pembuat Soal Listening')
-            ->description('Listening dibuat sebagai alur bebas: admin bisa menambah Kalimat + Audio beberapa kali, lalu menambah Soal + Jawaban, lalu lanjut cerita lagi sesuka kebutuhan.')
+            ->description('Listening sederhana: user klik tombol mikrofon, mendengar audio, lalu menyusun kalimat sesuai yang diucapkan.')
             ->visible(fn (Get $get): bool => $get('type') === 'listening')
             ->schema([
                 Forms\Components\TextInput::make('instruction')
                     ->label('Instruksi')
                     ->maxLength(255)
-                    ->default('Dengarkan cerita, lalu jawab pertanyaan sampai benar.'),
-
-                Forms\Components\TextInput::make('settings.story_button_label')
-                    ->label('Label Tombol Mulai')
-                    ->maxLength(120)
-                    ->default('Mulai'),
+                    ->default('Dengarkan audio, lalu susun kalimat yang kamu dengar.'),
 
                 Forms\Components\Placeholder::make('api_tools_hint')
                     ->label('Generate Audio via API')
-                    ->content('Buka API INTEGRATION → API Tools → Edge TTS Gratis untuk generate audio otomatis. Copy path hasil generate ke field Path Audio Cerita atau Path Audio Pertanyaan.')
+                    ->content('Buka API INTEGRATION -> API Tools -> Edge TTS Gratis untuk generate audio otomatis. Copy path hasil generate ke field Path Audio.')
                     ->columnSpanFull(),
 
-                Forms\Components\Builder::make('settings.listening_flow')
-                    ->label('Alur Listening')
-                    ->helperText('Tambahkan blok Kalimat + Audio untuk cerita, lalu blok Soal + Jawaban saat ingin memunculkan pertanyaan. Urutannya bebas: cerita, cerita, soal, cerita, soal, dan seterusnya.')
-                    ->blocks([
-                        Forms\Components\Builder\Block::make('story')
-                            ->label('Kalimat + Audio')
-                            ->schema([
-                                Forms\Components\Textarea::make('story_text')
-                                    ->label('Kalimat Cerita')
-                                    ->rows(4)
-                                    ->required()
-                                    ->columnSpanFull()
-                                    ->helperText('Kalimat ini akan tampil di layar. Setelah user klik Mulai, audio diputar otomatis sampai selesai.'),
-
-                                Forms\Components\FileUpload::make('story_audio_path')
-                                    ->label('Upload Audio Cerita')
-                                    ->acceptedFileTypes([
-                                        'audio/mpeg',
-                                        'audio/wav',
-                                        'audio/ogg',
-                                        'audio/mp4',
-                                        'audio/x-m4a',
-                                    ])
-                                    ->directory('learning/audio/listening/story')
-                                    ->columnSpanFull()
-                                    ->helperText('Pakai ini kalau ingin upload file audio manual.'),
-
-                                Forms\Components\TextInput::make('story_audio_manual_path')
-                                    ->label('Path Audio Cerita')
-                                    ->placeholder('learning/audio/generated/edge-tts/anna-intro.mp3')
-                                    ->helperText('Isi ini kalau audio dibuat dari Edge TTS/API Tools. Jika field ini diisi, sistem akan memakai path ini.')
-                                    ->columnSpanFull(),
-                            ])
-                            ->columns(1),
-
-                        Forms\Components\Builder\Block::make('question')
-                            ->label('Soal + Jawaban')
-                            ->schema([
-                                Forms\Components\Textarea::make('question_text')
-                                    ->label('Soal')
-                                    ->rows(3)
-                                    ->required()
-                                    ->columnSpanFull(),
-
-                                Forms\Components\FileUpload::make('question_audio_path')
-                                    ->label('Upload Audio Pertanyaan')
-                                    ->acceptedFileTypes([
-                                        'audio/mpeg',
-                                        'audio/wav',
-                                        'audio/ogg',
-                                        'audio/mp4',
-                                        'audio/x-m4a',
-                                    ])
-                                    ->directory('learning/audio/listening/questions')
-                                    ->columnSpanFull()
-                                    ->helperText('Opsional. Pakai ini kalau ingin upload file audio manual.'),
-
-                                Forms\Components\TextInput::make('question_audio_manual_path')
-                                    ->label('Path Audio Pertanyaan')
-                                    ->placeholder('learning/audio/generated/edge-tts/question-1.mp3')
-                                    ->helperText('Isi ini kalau audio pertanyaan dibuat dari Edge TTS/API Tools. Jika field ini diisi, sistem akan memakai path ini.')
-                                    ->columnSpanFull(),
-
-                                Forms\Components\Repeater::make('options')
-                                    ->label('Pilihan Jawaban')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('text')
-                                            ->label('Teks Opsi')
-                                            ->required(),
-
-                                        Forms\Components\FileUpload::make('audio_path')
-                                            ->label('Audio Opsi')
-                                            ->acceptedFileTypes([
-                                                'audio/mpeg',
-                                                'audio/wav',
-                                                'audio/ogg',
-                                                'audio/mp4',
-                                                'audio/x-m4a',
-                                            ])
-                                            ->directory('learning/audio/options'),
-
-                                        Forms\Components\TextInput::make('audio_manual_path')
-                                            ->label('Path Audio Opsi')
-                                            ->placeholder('learning/audio/generated/edge-tts/option.mp3')
-                                            ->helperText('Opsional jika audio dibuat dari API Tools.'),
-
-                                        Forms\Components\Toggle::make('is_correct')
-                                            ->label('Jawaban Benar')
-                                            ->default(false),
-                                    ])
-                                    ->columns(2)
-                                    ->defaultItems(2)
-                                    ->minItems(2)
-                                    ->addActionLabel('Tambah Pilihan Jawaban')
-                                    ->columnSpanFull()
-                                    ->helperText('Pilihan jawaban bebas sebanyak kebutuhan admin. Tandai minimal satu sebagai benar.'),
-
-                                Forms\Components\Textarea::make('explanation')
-                                    ->label('Pembahasan')
-                                    ->rows(2)
-                                    ->columnSpanFull(),
-                            ])
-                            ->columns(1),
+                Forms\Components\FileUpload::make('settings.question_audio_path')
+                    ->label('Upload Audio')
+                    ->acceptedFileTypes([
+                        'audio/mpeg',
+                        'audio/wav',
+                        'audio/ogg',
+                        'audio/mp4',
+                        'audio/x-m4a',
                     ])
-                    ->addActionLabel('Tambah Kalimat / Soal')
-                    ->collapsible()
-                    ->cloneable()
-                    ->reorderable()
+                    ->directory('learning/audio/listening/questions')
+                    ->columnSpanFull(),
+
+                Forms\Components\TextInput::make('settings.question_audio_manual_path')
+                    ->label('Path Audio')
+                    ->placeholder('learning/audio/generated/edge-tts/listening-1.mp3')
+                    ->helperText('Isi ini jika audio dibuat dari Edge TTS/API Tools. Jika diisi, path ini diprioritaskan.')
                     ->columnSpanFull(),
 
                 Forms\Components\Textarea::make('question_text')
-                    ->label('Judul Internal / Fallback')
+                    ->label('Arahan Soal')
                     ->rows(2)
-                    ->default('Listening flow')
+                    ->default('Susun kalimat yang kamu dengar.')
                     ->required(fn (Get $get): bool => $get('type') === 'listening')
-                    ->helperText('Dipakai sebagai judul internal/fallback. Soal utama bisa dibuat lewat blok Soal + Jawaban pada Alur Listening.')
+                    ->helperText('Teks ini hanya instruksi. Kalimat jawaban jangan ditampilkan di sini.')
+                    ->columnSpanFull(),
+
+                Forms\Components\Repeater::make('settings.sentence_tokens')
+                    ->label('Token Kalimat Benar')
+                    ->schema([
+                        Forms\Components\TextInput::make('text')
+                            ->label('Kata / Frasa')
+                            ->required(),
+                    ])
+                    ->defaultItems(4)
+                    ->minItems(2)
+                    ->addActionLabel('Tambah Token')
+                    ->helperText('Masukkan kata sesuai urutan audio. User akan menyusun token ini setelah mendengar suara.')
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('listening_answer_hint')
+                    ->label('Kunci Jawaban')
+                    ->content('Isi Jawaban Benar / Kunci Jawaban dengan kalimat lengkap. Jika kosong, sistem memakai gabungan token di atas.')
                     ->columnSpanFull(),
             ])
             ->columns(2);
     }
-
     private static function wordMatchSection(): Forms\Components\Section
     {
         return Forms\Components\Section::make('Pembuat Soal Sambung Kata')
@@ -451,13 +367,13 @@ class LearningQuestionResource extends Resource
     private static function readingStorySection(): Forms\Components\Section
     {
         return Forms\Components\Section::make('Pembuat Reading Story')
-            ->description('Gunakan untuk level reading/dialog panjang. User membaca atau mendengar cerita, lalu menjawab beberapa pertanyaan tanpa sistem nyawa.')
+            ->description('Susun dialog dan pertanyaan dalam satu alur. User melihat dialog satu per satu, audio diputar, lalu pertanyaan muncul di titik yang admin tentukan.')
             ->visible(fn (Get $get): bool => $get('type') === 'reading_story')
             ->schema([
                 Forms\Components\TextInput::make('instruction')
                     ->label('Instruksi')
                     ->maxLength(255)
-                    ->default('Baca dialog, lalu jawab pertanyaan pemahaman.'),
+                    ->default('Ikuti dialog, lalu jawab pertanyaan pemahaman.'),
 
                 Forms\Components\TextInput::make('settings.story_button_label')
                     ->label('Label Tombol Mulai')
@@ -471,182 +387,93 @@ class LearningQuestionResource extends Resource
                     ->columnSpanFull()
                     ->helperText('Contoh: Dialog perkenalan di kelas.'),
 
-                Forms\Components\Repeater::make('settings.story_segments')
-                    ->label('Dialog / Paragraf Cerita')
-                    ->schema([
-                        Forms\Components\Textarea::make('text')
-                            ->label('Teks Dialog / Paragraf')
-                            ->rows(3)
-                            ->required()
-                            ->columnSpanFull(),
-
-                        Forms\Components\FileUpload::make('audio_path')
-                            ->label('Upload Audio Dialog')
-                            ->acceptedFileTypes([
-                                'audio/mpeg',
-                                'audio/wav',
-                                'audio/ogg',
-                                'audio/mp4',
-                                'audio/x-m4a',
-                            ])
-                            ->directory('learning/audio/reading/story'),
-
-                        Forms\Components\TextInput::make('audio_manual_path')
-                            ->label('Path Audio Dialog')
-                            ->placeholder('learning/audio/generated/edge-tts/dialog-1.mp3')
-                            ->helperText('Opsional jika audio dibuat dari API Tools/Edge TTS.'),
-                    ])
-                    ->columns(2)
-                    ->defaultItems(3)
-                    ->minItems(1)
-                    ->addActionLabel('Tambah Dialog / Paragraf')
-                    ->columnSpanFull(),
-
-                Forms\Components\Repeater::make('settings.story_questions')
-                    ->label('Pertanyaan Pemahaman Cerita')
-                    ->schema([
-                        Forms\Components\Textarea::make('question_text')
-                            ->label('Pertanyaan')
-                            ->rows(2)
-                            ->required()
-                            ->columnSpanFull(),
-
-                        Forms\Components\Repeater::make('options')
-                            ->label('Pilihan Jawaban')
+                Forms\Components\Builder::make('settings.story_flow')
+                    ->label('Alur Dialog dan Pertanyaan')
+                    ->blocks([
+                        Forms\Components\Builder\Block::make('dialogue')
+                            ->label('Dialog Tokoh')
                             ->schema([
-                                Forms\Components\TextInput::make('text')
-                                    ->label('Teks Jawaban')
+                                Forms\Components\TextInput::make('speaker')
+                                    ->label('Nama Tokoh')
+                                    ->placeholder('Tokoh A / Andra')
                                     ->required(),
 
-                                Forms\Components\Toggle::make('is_correct')
-                                    ->label('Jawaban Benar')
-                                    ->default(false),
-                            ])
-                            ->columns(2)
-                            ->defaultItems(4)
-                            ->minItems(2)
-                            ->addActionLabel('Tambah Jawaban')
-                            ->columnSpanFull(),
+                                Forms\Components\Select::make('side')
+                                    ->label('Posisi Dialog')
+                                    ->options([
+                                        'left' => 'Kiri',
+                                        'right' => 'Kanan',
+                                    ])
+                                    ->default('left')
+                                    ->required(),
 
-                        Forms\Components\Textarea::make('explanation')
-                            ->label('Pembahasan Setelah Benar')
-                            ->rows(2)
-                            ->columnSpanFull(),
+                                Forms\Components\Textarea::make('text')
+                                    ->label('Teks Dialog')
+                                    ->rows(3)
+                                    ->required()
+                                    ->columnSpanFull(),
+
+                                Forms\Components\FileUpload::make('audio_path')
+                                    ->label('Upload Audio Dialog')
+                                    ->acceptedFileTypes([
+                                        'audio/mpeg',
+                                        'audio/wav',
+                                        'audio/ogg',
+                                        'audio/mp4',
+                                        'audio/x-m4a',
+                                    ])
+                                    ->directory('learning/audio/reading/story'),
+
+                                Forms\Components\TextInput::make('audio_manual_path')
+                                    ->label('Path Audio Dialog')
+                                    ->placeholder('learning/audio/generated/edge-tts/dialog-1.mp3')
+                                    ->helperText('Opsional jika audio dibuat dari API Tools/Edge TTS.'),
+                            ])
+                            ->columns(2),
+
+                        Forms\Components\Builder\Block::make('question')
+                            ->label('Pertanyaan Pemahaman')
+                            ->schema([
+                                Forms\Components\Textarea::make('question_text')
+                                    ->label('Pertanyaan')
+                                    ->rows(2)
+                                    ->required()
+                                    ->columnSpanFull(),
+
+                                Forms\Components\Repeater::make('options')
+                                    ->label('Pilihan Jawaban')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('text')
+                                            ->label('Teks Jawaban')
+                                            ->required(),
+
+                                        Forms\Components\Toggle::make('is_correct')
+                                            ->label('Jawaban Benar')
+                                            ->default(false),
+                                    ])
+                                    ->columns(2)
+                                    ->defaultItems(4)
+                                    ->minItems(2)
+                                    ->addActionLabel('Tambah Jawaban')
+                                    ->columnSpanFull(),
+
+                                Forms\Components\Textarea::make('explanation')
+                                    ->label('Catatan Internal / Pembahasan')
+                                    ->rows(2)
+                                    ->helperText('Tidak akan langsung membocorkan jawaban saat user salah.')
+                                    ->columnSpanFull(),
+                            ]),
                     ])
-                    ->defaultItems(2)
-                    ->minItems(1)
-                    ->addActionLabel('Tambah Pertanyaan Cerita')
+                    ->addActionLabel('Tambah Dialog atau Pertanyaan')
+                    ->collapsible()
+                    ->cloneable()
+                    ->reorderable()
                     ->columnSpanFull(),
 
                 Forms\Components\Placeholder::make('reading_story_hint')
                     ->label('Catatan Mode Reading')
-                    ->content('Mode ini tidak memakai nyawa. Jika user salah, jawaban benar tidak ditampilkan dan user diminta memahami cerita lagi.')
+                    ->content('Mode ini tidak memakai nyawa. Jika user salah, sistem tidak memberi jawaban benar dan user harus mencoba lagi sampai paham.')
                     ->columnSpanFull(),
-            ])
-            ->columns(2);
-    }
-
-    private static function realCaseSection(): Forms\Components\Section
-    {
-        return Forms\Components\Section::make('Pembuat Soal Situasi Nyata')
-            ->description('Gunakan bagian ini untuk membuat soal berbasis konteks kehidupan nyata.')
-            ->visible(fn (Get $get): bool => $get('type') === 'real_case')
-            ->schema([
-                Forms\Components\TextInput::make('instruction')
-                    ->label('Instruksi')
-                    ->maxLength(255)
-                    ->default('Baca situasi lalu pilih respons yang paling natural.'),
-
-                Forms\Components\Textarea::make('settings.scenario_context')
-                    ->label('Konteks Skenario')
-                    ->required(fn (Get $get): bool => $get('type') === 'real_case')
-                    ->rows(4)
-                    ->columnSpanFull()
-                    ->helperText('Contoh: Kamu sedang di restoran dan ingin memesan makanan.'),
-
-                Forms\Components\Textarea::make('question_text')
-                    ->label('Pertanyaan')
-                    ->required(fn (Get $get): bool => $get('type') === 'real_case')
-                    ->rows(4)
-                    ->columnSpanFull(),
-
-                Forms\Components\Textarea::make('settings.ideal_response')
-                    ->label('Respons Ideal')
-                    ->rows(3)
-                    ->columnSpanFull(),
-
-                Forms\Components\FileUpload::make('image_path')
-                    ->label('Gambar Skenario')
-                    ->image()
-                    ->directory('learning/images/questions')
-                    ->imageEditor()
-                    ->columnSpanFull(),
-
-                static::optionsRepeater(
-                    minItems: 2,
-                    helperText: 'Isi pilihan respons yang mungkin dipilih user.'
-                ),
-            ])
-            ->columns(2);
-    }
-
-    private static function videoQuestionSection(): Forms\Components\Section
-    {
-        return Forms\Components\Section::make('Pembuat Video Question')
-            ->description('Gunakan bagian ini untuk membuat soal berbasis video. User menonton video lalu menjawab pertanyaan.')
-            ->visible(fn (Get $get): bool => $get('type') === 'video_question')
-            ->schema([
-                Forms\Components\TextInput::make('instruction')
-                    ->label('Instruksi')
-                    ->maxLength(255)
-                    ->default('Tonton video, lalu pilih jawaban yang paling tepat.'),
-
-                Forms\Components\FileUpload::make('settings.video_path')
-                    ->label('Upload Video')
-                    ->acceptedFileTypes([
-                        'video/mp4',
-                        'video/webm',
-                        'video/ogg',
-                        'video/quicktime',
-                        'video/x-m4v',
-                    ])
-                    ->maxSize(20480)
-                    ->directory('learning/videos/questions')
-                    ->helperText('Maksimal 20MB. Format yang disarankan: MP4/WebM.')
-                    ->columnSpanFull(),
-
-                Forms\Components\TextInput::make('settings.video_url')
-                    ->label('Video URL')
-                    ->url()
-                    ->maxLength(500)
-                    ->placeholder('https://www.youtube.com/watch?v=... atau https://.../video.mp4')
-                    ->helperText('Bisa direct video URL atau YouTube URL. Sistem akan menampilkan embed untuk YouTube.')
-                    ->columnSpanFull(),
-
-                Forms\Components\TextInput::make('settings.must_watch_seconds')
-                    ->label('Minimal Tonton')
-                    ->numeric()
-                    ->suffix('detik')
-                    ->default(5)
-                    ->minValue(0)
-                    ->maxValue(120),
-
-                Forms\Components\Textarea::make('settings.video_transcript')
-                    ->label('Transkrip / Catatan Video')
-                    ->rows(3)
-                    ->columnSpanFull()
-                    ->helperText('Opsional. Bisa dipakai sebagai catatan admin atau bantuan pembelajaran.'),
-
-                Forms\Components\Textarea::make('question_text')
-                    ->label('Pertanyaan Setelah Video')
-                    ->required(fn (Get $get): bool => $get('type') === 'video_question')
-                    ->rows(4)
-                    ->columnSpanFull(),
-
-                static::optionsRepeater(
-                    minItems: 2,
-                    helperText: 'Tandai jawaban benar untuk pertanyaan video.'
-                ),
             ])
             ->columns(2);
     }

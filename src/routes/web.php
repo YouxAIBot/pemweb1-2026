@@ -68,8 +68,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/turnamen', [LearningDashboardController::class, 'games'])->name('learning.games');
     Route::get('/tournament', fn () => redirect()->route('learning.tournament'));
     Route::get('/turnamen/cepat', [LearningDashboardController::class, 'tournament'])->name('learning.tournament');
-    Route::get('/turnamen/video-question', [LearningDashboardController::class, 'videoQuestion'])->name('learning.video-question');
-    Route::post('/turnamen/video-question', [LearningDashboardController::class, 'submitVideoQuestion'])->name('learning.video-question.submit');
+    Route::get('/turnamen/video-question', fn () => redirect()->route('learning.games'))->name('learning.video-question');
+    Route::post('/turnamen/video-question', fn () => redirect()->route('learning.games'))->name('learning.video-question.submit');
     Route::get('/turnamen/duel', [DuelController::class, 'lobby'])->name('learning.duel.lobby');
     Route::get('/turnamen/duel/history', [DuelController::class, 'history'])->name('learning.duel.history');
     Route::post('/turnamen/duel/find-match', [DuelController::class, 'findMatch'])->name('learning.duel.find');

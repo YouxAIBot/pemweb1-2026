@@ -239,6 +239,22 @@ class StructuredFoundationCurriculumSeeder extends Seeder
             'time_limit' => 90,
             'settings' => [
                 'story_button_label' => 'Mulai Reading',
+                'story_flow' => [
+                    ...collect($story['segments'])->map(fn (string $text, int $index): array => [
+                        'type' => 'dialogue',
+                        'speaker' => $index % 2 === 0 ? 'Tokoh A' : 'Tokoh B',
+                        'side' => $index % 2 === 0 ? 'left' : 'right',
+                        'text' => $text,
+                        'audio_path' => null,
+                        'audio_manual_path' => null,
+                    ])->values()->all(),
+                    ...collect($story['questions'])->map(fn (array $item): array => [
+                        'type' => 'question',
+                        'question_text' => $item['question'],
+                        'explanation' => $item['explanation'],
+                        'options' => $this->settingsOptions($item['answer'], $item['wrong']),
+                    ])->values()->all(),
+                ],
                 'story_segments' => collect($story['segments'])->map(fn (string $text, int $index): array => [
                     'id' => $index + 1,
                     'text' => $text,

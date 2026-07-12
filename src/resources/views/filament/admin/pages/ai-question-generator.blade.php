@@ -36,8 +36,8 @@
                             <option value="multiple_choice">Pilihan Ganda</option>
                             <option value="word_match">Sambung Kata</option>
                             <option value="sentence_order">Urutkan Kalimat</option>
-                            <option value="listening">Listening Flow</option>
-                            <option value="real_case">Soal Nyata</option>
+                            <option value="listening">Listening Susun Kalimat</option>
+                            <option value="reading_story">Reading Story</option>
                             <option value="mixed">Mix</option>
                         </select>
                     </div>

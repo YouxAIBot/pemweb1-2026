@@ -51,9 +51,9 @@ class GameModeSeeder extends Seeder
                 'icon_label' => '▶',
                 'route_name' => 'learning.video-question',
                 'button_label' => 'Mulai Video',
-                'status' => 'active',
+                'status' => 'disabled',
                 'sort_order' => 4,
-                'is_active' => true,
+                'is_active' => false,
             ],
             [
                 'key' => 'daily_boss',

@@ -88,7 +88,7 @@ class StoryLanguageQuestionSeeder extends Seeder
                 'question_text' => $questionText,
             ],
             [
-                'type' => 'real_case',
+                'type' => 'multiple_choice',
                 'instruction' => 'Baca cerita pendek, lalu jawab pertanyaannya.',
                 'correct_answer' => $story['answer'],
                 'explanation' => $story['explanation'],

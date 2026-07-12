@@ -117,7 +117,7 @@ class DuelQuestionGeneratorService
                     $difficultyQuery
                         ->where('settings->difficulty', 'hard')
                         ->orWhere('points', '>=', 15)
-                        ->orWhereIn('type', ['real_case', 'listening']);
+                        ->orWhere('type', 'listening');
                 })
                 ->where(function ($nestedQuery) {
                     $nestedQuery
@@ -145,7 +145,7 @@ class DuelQuestionGeneratorService
 
         if ($difficulty === 'easy') {
             $query
-                ->whereNotIn('type', ['real_case', 'video_question'])
+                ->whereNotIn('type', ['reading_story'])
                 ->whereHas('level.part', fn ($partQuery) => $partQuery->where('sort_order', '<=', 3))
                 ->whereHas('level', fn ($levelQuery) => $levelQuery->where('sort_order', '<=', 3));
 
@@ -164,14 +164,14 @@ class DuelQuestionGeneratorService
         }
 
         $query
-            ->whereNotIn('type', ['video_question'])
+            ->whereNotIn('type', ['reading_story'])
             ->whereHas('level.part', fn ($partQuery) => $partQuery->where('sort_order', '<=', 4));
     }
 
     private function excludeStoryAndVideoQuestions($query): void
     {
         $query
-            ->whereNotIn('type', ['video_question'])
+            ->whereNotIn('type', ['reading_story'])
             ->whereDoesntHave('level.part', function ($partQuery) {
                 $partQuery
                     ->where('slug', 'bagian-4-cerita-pendek')
@@ -218,9 +218,7 @@ class DuelQuestionGeneratorService
     private function promptFor(LearningQuestion $question): string
     {
         return match ($question->type) {
-            'real_case' => 'Situasi',
             'listening' => 'Listening',
-            'video_question' => 'Video',
             default => str($question->instruction ?: 'Pilih jawaban')->limit(38)->toString(),
         };
     }
@@ -243,20 +241,20 @@ class DuelQuestionGeneratorService
             'hard' => [
                 $this->fallback('reading', 'Reading', 'Text: "Although the train was late, Mina still arrived before class started." What happened?', ['Mina arrived before class', 'Mina missed the class', 'The train arrived early', 'Class was cancelled'], 'Mina arrived before class', 'Teks menyebut Mina tetap tiba sebelum kelas dimulai.'),
                 $this->fallback('grammar', 'Tenses', 'By the time I arrived, they ____ dinner.', ['had finished', 'finish', 'were finish', 'finishing'], 'had finished', 'Kalimat ini memakai past perfect untuk kejadian yang selesai lebih dulu.'),
-                $this->fallback('real_case', 'Situasi', 'Kamu ingin meminta lawan bicara mengulang dengan sopan. Pilih kalimat terbaik.', ['Could you repeat that, please?', 'Repeat now!', 'You say again fast!', 'Why talk?'], 'Could you repeat that, please?', 'Kalimat ini sopan karena memakai "could you" dan "please".'),
+                $this->fallback('multiple_choice', 'Situasi', 'Kamu ingin meminta lawan bicara mengulang dengan sopan. Pilih kalimat terbaik.', ['Could you repeat that, please?', 'Repeat now!', 'You say again fast!', 'Why talk?'], 'Could you repeat that, please?', 'Kalimat ini sopan karena memakai "could you" dan "please".'),
                 $this->fallback('vocabulary', 'Sinonim', 'Which word is closest in meaning to "difficult"?', ['challenging', 'simple', 'empty', 'cheap'], 'challenging', '"Challenging" dekat maknanya dengan sulit.'),
                 $this->fallback('translation', 'Terjemahan', 'Translate: "Saya sudah menyelesaikan tugas sebelum makan malam."', ['I had finished the task before dinner', 'I finish task after dinner', 'I am finishing dinner task', 'I finished before task dinner'], 'I had finished the task before dinner', 'Past perfect cocok untuk tindakan yang selesai sebelum kejadian lain di masa lalu.'),
                 $this->fallback('grammar', 'Conditionals', 'If she had studied harder, she ____ the exam.', ['would have passed', 'will pass', 'passes', 'would pass now'], 'would have passed', 'Third conditional memakai pola "would have + past participle".'),
                 $this->fallback('reading', 'Inference', 'Text: "Raka kept checking the clock while waiting for the announcement." What can be inferred?', ['Raka was anxious', 'Raka was sleeping', 'Raka forgot the time', 'Raka ignored the announcement'], 'Raka was anxious', 'Kebiasaan mengecek jam menunjukkan ia cemas atau menunggu dengan tegang.'),
                 $this->fallback('vocabulary', 'Nuance', 'Which word best replaces "brief" in "a brief explanation"?', ['short', 'angry', 'unclear', 'expensive'], 'short', '"Brief" berarti singkat.'),
                 $this->fallback('grammar', 'Passive Voice', 'The report ____ by the team before noon.', ['was submitted', 'submitted', 'was submit', 'submitting'], 'was submitted', 'Kalimat pasif lampau memakai "was/were + past participle".'),
-                $this->fallback('real_case', 'Formal Email', 'Choose the most appropriate closing for a formal email.', ['Sincerely,', 'Yo!', 'Later bro', 'Bye now!!!'], 'Sincerely,', '"Sincerely" umum dipakai untuk penutup email formal.'),
+                $this->fallback('multiple_choice', 'Formal Email', 'Choose the most appropriate closing for a formal email.', ['Sincerely,', 'Yo!', 'Later bro', 'Bye now!!!'], 'Sincerely,', '"Sincerely" umum dipakai untuk penutup email formal.'),
             ],
             default => [
                 $this->fallback('translation', 'Translate', 'Apa arti kalimat: "I usually drink water after breakfast"?', ['Saya biasanya minum air setelah sarapan', 'Saya selalu makan nasi saat malam', 'Dia minum kopi sebelum tidur', 'Mereka sarapan di sekolah'], 'Saya biasanya minum air setelah sarapan', '"Usually" berarti biasanya, dan "after breakfast" berarti setelah sarapan.'),
                 $this->fallback('grammar', 'Complete', 'They ____ football every Sunday.', ['play', 'plays', 'playing', 'played by'], 'play', 'Subject "they" memakai verb dasar pada simple present.'),
                 $this->fallback('reading', 'Reading', 'Text: "The library is quiet. Students read books there." What is the place like?', ['Quiet', 'Noisy', 'Dangerous', 'Expensive'], 'Quiet', 'Teks menyebut "The library is quiet".'),
-                $this->fallback('real_case', 'Situasi', 'Kamu ingin memesan makanan dengan sopan. Kalimat mana yang paling tepat?', ['Can I have fried rice, please?', 'Give me rice now!', 'Rice I want fast!', 'You food me!'], 'Can I have fried rice, please?', 'Kalimat ini sopan karena memakai "Can I have..." dan "please".'),
+                $this->fallback('multiple_choice', 'Situasi', 'Kamu ingin memesan makanan dengan sopan. Kalimat mana yang paling tepat?', ['Can I have fried rice, please?', 'Give me rice now!', 'Rice I want fast!', 'You food me!'], 'Can I have fried rice, please?', 'Kalimat ini sopan karena memakai "Can I have..." dan "please".'),
                 $this->fallback('grammar', 'Article', 'I saw ____ elephant at the zoo.', ['an', 'a', 'the only', 'many'], 'an', 'Elephant diawali bunyi vokal, maka memakai "an".'),
                 $this->fallback('vocabulary', 'Kosakata', 'Which word is opposite of "clean"?', ['dirty', 'fresh', 'bright', 'safe'], 'dirty', 'Lawan kata "clean" adalah "dirty".'),
                 $this->fallback('dialogue', 'Respons', 'A: "How are you?" B: "____"', ['I am fine, thanks', 'It is a book', 'At seven o clock', 'No, I do not'], 'I am fine, thanks', 'Pertanyaan ini menanyakan kabar.'),

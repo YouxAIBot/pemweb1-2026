@@ -147,7 +147,7 @@ class VariedLanguagePracticeSeeder extends Seeder
             ->map(function (array $item, int $index) use ($language, $pool, $difficulty): array {
                 if ($index % 2 === 0) {
                     return $this->question(
-                        $difficulty === 'hard' ? 'real_case' : 'multiple_choice',
+                        'multiple_choice',
                         'Pahami kalimat pendek lalu pilih arti yang tepat.',
                         'Pilih arti kalimat "' . $item['foreign'] . '".',
                         $item['translation'],
@@ -158,7 +158,7 @@ class VariedLanguagePracticeSeeder extends Seeder
                 }
 
                 return $this->question(
-                    $difficulty === 'hard' ? 'real_case' : 'multiple_choice',
+                    'multiple_choice',
                     'Pilih ungkapan yang paling natural.',
                     'Pilih ungkapan ' . $language['name'] . ' yang cocok untuk "' . $item['translation'] . '".',
                     $item['foreign'],

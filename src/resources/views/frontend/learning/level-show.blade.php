@@ -29,9 +29,51 @@
             $audioPath = $segment['audio_manual_path'] ?? ($segment['audio_path'] ?? null);
 
             return [
+                'speaker' => $segment['speaker'] ?? null,
+                'side' => $segment['side'] ?? null,
                 'text' => $segment['text'] ?? '',
                 'audioUrl' => learningAudioUrl($audioPath),
             ];
+        })->values();
+
+        $storyFlow = collect($settings['story_flow'] ?? [])->map(function ($item, $itemIndex) {
+            $type = $item['type'] ?? ($item['item_type'] ?? null);
+            $data = $item['data'] ?? $item;
+
+            if ($type === 'question') {
+                $options = collect($data['options'] ?? [])->map(function ($option, $optionIndex) {
+                    return [
+                        'id' => $optionIndex + 1,
+                        'text' => $option['text'] ?? '',
+                        'isCorrect' => (bool) ($option['is_correct'] ?? false),
+                    ];
+                })->filter(fn ($option) => filled($option['text']))->values();
+
+                return [
+                    'id' => $itemIndex + 1,
+                    'type' => 'question',
+                    'questionText' => $data['question_text'] ?? '',
+                    'options' => $options,
+                    'explanation' => $data['explanation'] ?? '',
+                ];
+            }
+
+            $audioPath = $data['audio_manual_path'] ?? ($data['audio_path'] ?? null);
+
+            return [
+                'id' => $itemIndex + 1,
+                'type' => 'dialogue',
+                'speaker' => $data['speaker'] ?? ('Tokoh ' . ($itemIndex + 1)),
+                'side' => in_array(($data['side'] ?? 'left'), ['left', 'right'], true) ? $data['side'] : 'left',
+                'text' => $data['text'] ?? '',
+                'audioUrl' => learningAudioUrl($audioPath),
+            ];
+        })->filter(function ($item) {
+            if (($item['type'] ?? null) === 'question') {
+                return filled($item['questionText'] ?? null);
+            }
+
+            return filled($item['text'] ?? null);
         })->values();
 
         $storyQuestions = collect($settings['story_questions'] ?? [])->map(function ($storyQuestion, $storyQuestionIndex) {
@@ -162,14 +204,12 @@
                 'learningPhrase' => $settings['learning_phrase_text'] ?? null,
                 'learningPhraseTranslation' => $settings['learning_phrase_translation'] ?? null,
                 'learningPhraseAudioUrl' => learningAudioUrl($settings['learning_phrase_audio_manual_path'] ?? ($settings['learning_phrase_audio_path'] ?? null)) ?: learningAudioUrl($question->audio_path),
+                'storyFlow' => $storyFlow,
                 'storySegments' => $storySegments,
                 'storyQuestions' => $storyQuestions,
                 'listeningFlow' => $listeningFlow,
                 'wordPairs' => $wordPairs,
                 'sentenceTokens' => $sentenceTokens,
-                'videoUrl' => learningAudioUrl($settings['video_path'] ?? null) ?: ($settings['video_url'] ?? null),
-                'videoTranscript' => $settings['video_transcript'] ?? null,
-                'mustWatchSeconds' => (int) ($settings['must_watch_seconds'] ?? 5),
             ],
             'options' => $question->options->map(function ($option) {
                 return [
@@ -1008,6 +1048,168 @@
         min-height: 1.4rem;
     }
 
+    .reading-story-stage {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding-bottom: 1.25rem;
+    }
+
+    .reading-start {
+        display: grid;
+        gap: 0.8rem;
+        align-content: center;
+        min-height: 42vh;
+    }
+
+    .reading-flow {
+        display: grid;
+        gap: 1.1rem;
+        padding: 0.2rem 0 5rem;
+    }
+
+    .reading-line {
+        width: min(76%, 760px);
+        display: grid;
+        gap: 0.32rem;
+        animation: studyIn 0.28s ease both;
+    }
+
+    .reading-line.is-left {
+        justify-self: start;
+    }
+
+    .reading-line.is-right {
+        justify-self: end;
+        text-align: right;
+    }
+
+    .reading-line-speaker {
+        color: var(--cyan);
+        font-size: 0.78rem;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .reading-line-text {
+        margin: 0;
+        color: #f6f9ff;
+        font-size: clamp(1.35rem, 3vw, 2.65rem);
+        font-weight: 900;
+        letter-spacing: -0.045em;
+        line-height: 1.18;
+        white-space: pre-line;
+    }
+
+    .reading-question-inline {
+        width: min(880px, 100%);
+        display: grid;
+        gap: 1rem;
+        justify-self: center;
+        padding: 1.15rem 0 0.45rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        animation: studyIn 0.28s ease both;
+    }
+
+    .reading-question-inline h4 {
+        margin: 0;
+        color: #f8fbff;
+        font-size: clamp(1.35rem, 3vw, 2.3rem);
+        line-height: 1.15;
+        letter-spacing: -0.04em;
+    }
+
+        .reading-answer-grid,
+        .listening-token-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.7rem;
+    }
+
+    .reading-answer-button {
+        min-height: 56px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        background: #1d2431;
+        color: var(--text);
+        padding: 0.85rem 1rem;
+        text-align: center;
+        font-weight: 900;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .reading-answer-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        border-color: rgba(102, 232, 247, 0.34);
+        background: #242d3d;
+    }
+
+    .reading-answer-button.is-correct {
+        border-color: rgba(73, 211, 139, 0.58);
+        background: rgba(73, 211, 139, 0.13);
+    }
+
+    .reading-answer-button.is-wrong {
+        border-color: rgba(255, 107, 138, 0.62);
+        background: rgba(255, 107, 138, 0.13);
+    }
+
+    .reading-inline-status {
+        min-height: 1.3rem;
+        color: var(--muted);
+        font-weight: 850;
+    }
+
+    .simple-listening-stage {
+        min-height: 100%;
+        display: grid;
+        align-content: center;
+        gap: 1.25rem;
+    }
+
+    .listening-mic-area {
+        display: grid;
+        justify-items: center;
+        gap: 0.85rem;
+        text-align: center;
+    }
+
+        .listening-mic-button {
+            width: 124px;
+            height: 124px;
+            display: grid;
+            place-items: center;
+        border: 1px solid rgba(102, 232, 247, 0.28);
+        border-radius: 999px;
+            background: radial-gradient(circle at 28% 22%, rgba(102, 232, 247, 0.25), rgba(105, 119, 255, 0.18) 58%, #1d2431);
+            color: #eff6ff;
+            font-size: 1.3rem;
+            font-weight: 950;
+            letter-spacing: 0.16em;
+            cursor: pointer;
+            box-shadow: 0 22px 50px rgba(102, 232, 247, 0.1);
+            transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .listening-mic-button:hover:not(:disabled) {
+        transform: translateY(-3px);
+        border-color: rgba(102, 232, 247, 0.54);
+    }
+
+    .listening-mic-button:disabled {
+        cursor: wait;
+        opacity: 0.68;
+    }
+
+    .listening-order-workbench {
+        display: grid;
+        gap: 0.85rem;
+    }
+
     .hidden-audio {
         display: none;
     }
@@ -1470,6 +1672,11 @@
             overflow: hidden;
         }
 
+        .quiz-body.is-reading-flow {
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
         .study-shell {
             height: 100%;
             min-height: 0;
@@ -1715,6 +1922,15 @@
             grid-template-columns: 1fr;
         }
 
+        .reading-line {
+            width: 100%;
+        }
+
+        .reading-answer-grid,
+        .listening-token-grid {
+            grid-template-columns: 1fr;
+        }
+
         .study-prompt-grid {
             grid-template-columns: 1fr;
         }
@@ -1810,38 +2026,6 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
-        };
-
-        const youtubeEmbedUrl = (url) => {
-            if (!url) {
-                return null;
-            }
-
-            try {
-                const parsed = new URL(url);
-                const host = parsed.hostname.replace(/^www\./, '');
-                let videoId = null;
-
-                if (host === 'youtu.be') {
-                    videoId = parsed.pathname.split('/').filter(Boolean)[0];
-                }
-
-                if (host === 'youtube.com' || host === 'm.youtube.com') {
-                    videoId = parsed.searchParams.get('v');
-
-                    if (!videoId && parsed.pathname.startsWith('/shorts/')) {
-                        videoId = parsed.pathname.split('/').filter(Boolean)[1];
-                    }
-
-                    if (!videoId && parsed.pathname.startsWith('/embed/')) {
-                        videoId = parsed.pathname.split('/').filter(Boolean)[1];
-                    }
-                }
-
-                return videoId ? `https://www.youtube.com/embed/${encodeURIComponent(videoId)}` : null;
-            } catch (error) {
-                return null;
-            }
         };
 
         const shuffle = (items) => {
@@ -2706,61 +2890,6 @@
             syncSentenceState();
         };
 
-        const renderVideoQuestion = (question) => {
-            const videoUrl = question.settings?.videoUrl || '';
-            const embedUrl = youtubeEmbedUrl(videoUrl);
-            const mustWatchSeconds = Math.max(Number(question.settings?.mustWatchSeconds || 0), 0);
-            const videoMarkup = embedUrl
-                ? `<iframe src="${escapeHtml(embedUrl)}" title="Video question" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`
-                : (videoUrl
-                    ? `<video controls playsinline src="${escapeHtml(videoUrl)}"></video>`
-                    : `<div class="quiz-context-box"><strong>Video belum tersedia</strong><p>Admin belum mengisi upload video atau video URL.</p></div>`);
-
-            questionBody.innerHTML = `
-                <div class="video-question-panel ${mustWatchSeconds > 0 ? 'is-locked' : ''}" data-video-question-panel>
-                    <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
-                    ${renderLearningFocus(question)}
-                    <div class="video-frame">${videoMarkup}</div>
-                    <p class="video-question-status" data-video-status>
-                        ${mustWatchSeconds > 0 ? `Pilihan jawaban terbuka dalam ${mustWatchSeconds} detik.` : 'Jawab pertanyaan setelah menonton video.'}
-                    </p>
-                    ${question.settings?.videoTranscript ? `<div class="quiz-context-box"><strong>Catatan Video</strong><p>${escapeHtml(question.settings.videoTranscript)}</p></div>` : ''}
-                    <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
-                    ${renderAnswerWorkspace(question)}
-                </div>
-            `;
-
-            attachAudioTriggers(questionBody);
-            attachAnswerWorkspaceEvents(question);
-
-            if (mustWatchSeconds <= 0) {
-                return;
-            }
-
-            locked = true;
-            const panel = questionBody.querySelector('[data-video-question-panel]');
-            const status = questionBody.querySelector('[data-video-status]');
-            let remaining = mustWatchSeconds;
-
-            const timer = window.setInterval(() => {
-                remaining -= 1;
-
-                if (remaining <= 0) {
-                    window.clearInterval(timer);
-                    locked = false;
-                    panel?.classList.remove('is-locked');
-                    if (status) {
-                        status.textContent = 'Pilihan jawaban sudah terbuka.';
-                    }
-                    return;
-                }
-
-                if (status) {
-                    status.textContent = `Pilihan jawaban terbuka dalam ${remaining} detik.`;
-                }
-            }, 1000);
-        };
-
         const renderStandardQuestion = (question) => {
             const context = question.settings?.scenarioContext
                 ? `<div class="quiz-context-box"><strong>Konteks</strong><p>${escapeHtml(question.settings.scenarioContext)}</p></div>`
@@ -2810,292 +2939,190 @@
         };
 
         const renderListeningQuestion = (question) => {
-            const configuredFlow = question.settings?.listeningFlow || [];
-            const fallbackFlow = [];
+            const configuredTokens = question.settings?.sentenceTokens || [];
+            const fallbackTokens = question.correctAnswer
+                ? String(question.correctAnswer).split(/\s+/).filter(Boolean).map((text, tokenIndex) => ({ id: tokenIndex + 1, text }))
+                : (question.options || []).map((option, tokenIndex) => ({ id: tokenIndex + 1, text: option.text }));
+            const tokens = configuredTokens.length > 0 ? configuredTokens : fallbackTokens;
+            const correctSentence = question.correctAnswer || tokens.map((token) => token.text).join(' ');
+            const audioUrl = question.settings?.questionAudioUrl || question.audioUrl || '';
 
-            if (question.settings?.audioTranscript || question.audioUrl) {
-                fallbackFlow.push({
-                    type: 'story',
-                    storyText: question.settings?.audioTranscript || 'Cerita akan diputar otomatis.',
-                    storyAudioUrl: question.audioUrl || '',
-                });
+            if (tokens.length === 0) {
+                renderStandardQuestion(question);
+                return;
             }
 
-            fallbackFlow.push({
-                type: 'question',
-                questionText: question.questionText || '',
-                questionAudioUrl: question.settings?.questionAudioUrl || '',
-                explanation: question.explanation || '',
-                options: question.options || [],
-            });
-
-            const listeningFlow = configuredFlow.length > 0 ? configuredFlow : fallbackFlow;
-            const startLabel = question.settings?.storyButtonLabel || 'Mulai';
-            let flowIndex = 0;
-            let listeningCorrectCounted = false;
+            const shuffledTokens = shuffle(tokens).map((token, tokenIndex) => ({
+                ...token,
+                tokenKey: `${token.id || tokenIndex}-${tokenIndex}`,
+            }));
 
             questionBody.innerHTML = `
-                <div class="listening-stage simple-listening">
-                    <p class="listening-instruction">${escapeHtml(question.instruction)}</p>
-
-                    <button type="button" class="story-action-button" data-start-listening>${escapeHtml(startLabel)}</button>
-
-                    <div class="listening-history" data-listening-history></div>
-
-                    <button type="button" class="listening-manual-button" data-manual-continue hidden>Lanjut</button>
-
-                    <audio class="hidden-audio" data-main-audio></audio>
-                    <audio class="hidden-audio" data-question-audio></audio>
+                <div class="simple-listening-stage">
+                    <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
+                    <div class="listening-mic-area">
+                        <button type="button" class="listening-mic-button" data-play-listening aria-label="Putar audio listening">MIC</button>
+                        <p class="listening-muted-status" data-listening-status>${audioUrl ? 'Klik mikrofon untuk mendengar kalimat.' : 'Audio belum tersedia. Susun kalimat dari token yang tersedia.'}</p>
+                    </div>
+                    <div class="listening-order-workbench" data-listening-workbench ${audioUrl ? 'hidden' : ''}>
+                        <div class="study-question-copy">
+                            <span class="answer-zone-label">Listening</span>
+                            <h4 class="quiz-question-text">${escapeHtml(question.questionText || 'Susun kalimat yang kamu dengar.')}</h4>
+                        </div>
+                        <div class="answer-zone">
+                            <div class="answer-zone-head">
+                                <span class="answer-zone-label">Kolom jawaban</span>
+                                <button type="button" class="answer-clear" data-clear-listening hidden>Ulang susunan</button>
+                            </div>
+                            <div class="answer-slot sentence-answer-row" data-listening-slot>
+                                <span data-empty-listening>Pilih kata dari bawah.</span>
+                            </div>
+                        </div>
+                        <div class="answer-option-bank">
+                            ${shuffledTokens.map((token) => `
+                                <button type="button" class="answer-token" data-listening-token data-token-key="${escapeHtml(token.tokenKey)}">
+                                    <span>${escapeHtml(token.text)}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="answer-action-bar">
+                            <button type="button" class="story-next-button" data-replay-listening ${audioUrl ? '' : 'hidden'}>Putar Ulang</button>
+                            <button type="button" class="check-answer-button" data-check-listening disabled>Periksa</button>
+                        </div>
+                    </div>
+                    <audio class="hidden-audio" data-listening-audio></audio>
                 </div>
             `;
 
-            const startButton = questionBody.querySelector('[data-start-listening]');
-            const manualButton = questionBody.querySelector('[data-manual-continue]');
-            const history = questionBody.querySelector('[data-listening-history]');
-            const mainAudio = questionBody.querySelector('[data-main-audio]');
-            const questionAudio = questionBody.querySelector('[data-question-audio]');
+            const playButton = questionBody.querySelector('[data-play-listening]');
+            const status = questionBody.querySelector('[data-listening-status]');
+            const workbench = questionBody.querySelector('[data-listening-workbench]');
+            const audio = questionBody.querySelector('[data-listening-audio]');
+            const slot = questionBody.querySelector('[data-listening-slot]');
+            const emptyText = questionBody.querySelector('[data-empty-listening]');
+            const clearButton = questionBody.querySelector('[data-clear-listening]');
+            const checkButton = questionBody.querySelector('[data-check-listening]');
+            const replayButton = questionBody.querySelector('[data-replay-listening]');
+            const tokenButtons = Array.from(questionBody.querySelectorAll('[data-listening-token]'));
+            const selectedTokens = [];
 
-            const scrollToLatest = () => {
-                const latest = history.lastElementChild;
-
-                if (latest) {
-                    latest.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
+            const revealWorkbench = () => {
+                workbench.hidden = false;
+                status.textContent = 'Susun kalimat sesuai audio.';
             };
 
-            const completeListeningQuestion = () => {
-                if (history.querySelector('[data-listening-finish]')) {
+            const playListeningAudio = () => {
+                if (!audioUrl) {
+                    revealWorkbench();
                     return;
                 }
 
-                const finishBox = document.createElement('div');
-                finishBox.className = 'listening-finish-box';
-                finishBox.dataset.listeningFinish = 'true';
-                finishBox.innerHTML = `
-                    <small>Listening selesai</small>
-                    <h4>Semua bagian listening sudah selesai.</h4>
-                    <p class="listening-muted-status">Tekan tombol selesai untuk lanjut ke soal berikutnya atau menyimpan progress.</p>
-                    <button type="button" class="listening-finish-button" data-finish-listening>Selesai</button>
-                `;
+                playButton.disabled = true;
+                status.textContent = 'Memutar audio...';
+                audio.src = audioUrl;
 
-                history.appendChild(finishBox);
-                scrollToLatest();
-
-                finishBox.querySelector('[data-finish-listening]').addEventListener('click', () => {
-                    if (!listeningCorrectCounted) {
-                        listeningCorrectCounted = true;
-                        clearRetryFlag(question);
-                        completeQuestion(question);
-                        recordQuestionResult(question, true, 'listening_completed');
-                        syncQuestionResults();
-                    }
-
-                    goNext();
-                });
-            };
-
-            const createStoryLine = (flowItem) => {
-                const line = document.createElement('div');
-                line.className = 'listening-history-card is-story';
-                line.innerHTML = `
-                    <p class="story-text">${escapeHtml(flowItem.storyText || '')}</p>
-                    <p class="listening-muted-status" data-story-status hidden></p>
-                `;
-
-                history.appendChild(line);
-                scrollToLatest();
-
-                return line;
-            };
-
-            const createQuestionBlock = (flowItem) => {
-                const block = document.createElement('div');
-                block.className = 'listening-history-card is-question listening-question-plain';
-                block.innerHTML = `
-                    <h4 class="quiz-question-text">${escapeHtml(flowItem.questionText || question.questionText || '')}</h4>
-                    <p class="listening-muted-status" data-question-status hidden></p>
-                    <div data-listening-options hidden></div>
-                `;
-
-                history.appendChild(block);
-                scrollToLatest();
-
-                return block;
-            };
-
-            const renderFlowOptions = (flowItem, block) => {
-                const optionsWrap = block.querySelector('[data-listening-options]');
-                const questionStatus = block.querySelector('[data-question-status]');
-                const flowQuestionData = {
-                    ...question,
-                    options: flowItem.options || [],
-                };
-
-                optionsWrap.innerHTML = renderOptions(flowQuestionData);
-                optionsWrap.hidden = true;
-
-                optionsWrap.querySelectorAll('[data-answer-option]').forEach((button) => {
-                    button.addEventListener('click', () => {
-                        if (locked) {
-                            return;
-                        }
-
-                        const isCorrect = button.dataset.correct === 'true';
-
-                        if (isCorrect) {
-                            optionsWrap.querySelectorAll('[data-answer-option]').forEach((item) => {
-                                item.disabled = true;
-
-                                if (item.dataset.correct === 'true') {
-                                    item.classList.add('is-correct');
-                                }
-                            });
-
-                            locked = true;
-                            block.classList.add('is-done');
-                            questionStatus.hidden = true;
-                            showFeedback(true, flowItem.explanation || question.explanation || 'Benar.');
-
-                            window.setTimeout(() => {
-                                locked = false;
-                                feedback.className = 'quiz-feedback';
-                                feedback.textContent = '';
-                                questionCard.classList.remove('is-correct');
-                                flowIndex += 1;
-                                playFlowItem(1000);
-                            }, 1000);
-
-                            return;
-                        }
-
-                        button.disabled = true;
-                        button.classList.add('is-wrong');
-                        questionStatus.textContent = 'Belum tepat. Coba lagi.';
-                        questionStatus.hidden = false;
-                        showFeedback(false, 'Belum tepat. Coba lagi sampai benar.');
-
-                        window.setTimeout(() => {
-                            questionCard.classList.remove('is-wrong');
-                            feedback.className = 'quiz-feedback';
-                            feedback.textContent = '';
-                            button.classList.remove('is-wrong');
-                            button.disabled = false;
-                        }, 850);
-                    });
-                });
-            };
-
-            const revealOptions = (block) => {
-                const optionsWrap = block.querySelector('[data-listening-options]');
-                const questionStatus = block.querySelector('[data-question-status]');
-
-                if (questionStatus) {
-                    questionStatus.hidden = true;
-                }
-
-                window.setTimeout(() => {
-                    optionsWrap.hidden = false;
-                    scrollToLatest();
-                }, 1000);
-            };
-
-            const showQuestionItem = (flowItem) => {
-                resetFeedback();
-
-                const block = createQuestionBlock(flowItem);
-                const questionStatus = block.querySelector('[data-question-status]');
-                renderFlowOptions(flowItem, block);
-
-                if (!flowItem.questionAudioUrl) {
-                    revealOptions(block);
-                    return;
-                }
-
-                questionStatus.textContent = 'Dengarkan pertanyaan terlebih dahulu.';
-                questionStatus.hidden = false;
-                questionAudio.src = flowItem.questionAudioUrl;
-
-                playHiddenAudio(questionAudio, () => {
-                    revealOptions(block);
+                playHiddenAudio(audio, () => {
+                    playButton.disabled = false;
+                    revealWorkbench();
                 }, () => {
-                    questionStatus.textContent = 'Audio pertanyaan diblokir browser. Tekan lanjut untuk menampilkan pilihan jawaban.';
-                    questionStatus.hidden = false;
-                    manualButton.hidden = false;
-                    manualButton.dataset.mode = 'options';
-                    manualButton.onclick = () => {
-                        manualButton.hidden = true;
-                        revealOptions(block);
-                    };
-                    scrollToLatest();
+                    playButton.disabled = false;
+                    revealWorkbench();
+                    status.textContent = 'Audio diblokir browser. Kamu tetap bisa menyusun kalimat.';
                 });
             };
 
-            const showStoryItem = (flowItem) => {
-                resetFeedback();
-
-                const line = createStoryLine(flowItem);
-                const storyStatus = line.querySelector('[data-story-status]');
-
-                const continueToNextItem = () => {
-                    storyStatus.hidden = true;
-                    flowIndex += 1;
-                    playFlowItem(0);
-                };
-
-                if (!flowItem.storyAudioUrl) {
-                    window.setTimeout(continueToNextItem, 1000);
-                    return;
-                }
-
-                mainAudio.src = flowItem.storyAudioUrl;
-
-                playHiddenAudio(mainAudio, continueToNextItem, () => {
-                    storyStatus.textContent = 'Audio diblokir. Tekan lanjut untuk melanjutkan.';
-                    storyStatus.hidden = false;
-                    manualButton.hidden = false;
-                    manualButton.dataset.mode = 'next-flow';
-                    manualButton.onclick = () => {
-                        manualButton.hidden = true;
-                        continueToNextItem();
-                    };
-                    scrollToLatest();
-                });
+            const syncListeningState = () => {
+                emptyText.hidden = selectedTokens.length > 0;
+                clearButton.hidden = selectedTokens.length === 0;
+                checkButton.disabled = selectedTokens.length !== tokens.length;
+                checkButton.textContent = selectedTokens.length === tokens.length ? 'Periksa' : 'Susun semua kata';
             };
 
-            const playFlowItem = (delay = 0) => {
-                if (flowIndex >= listeningFlow.length) {
-                    completeListeningQuestion();
-                    return;
+            const returnToken = (selectedToken) => {
+                const indexToRemove = selectedTokens.findIndex((item) => item.key === selectedToken.key);
+
+                if (indexToRemove >= 0) {
+                    selectedTokens.splice(indexToRemove, 1);
                 }
 
-                const flowItem = listeningFlow[flowIndex];
-                manualButton.hidden = true;
-                manualButton.onclick = null;
+                selectedToken.button.hidden = false;
+                selectedToken.node.remove();
+                syncListeningState();
+            };
 
-                window.setTimeout(() => {
-                    if (flowItem.type === 'question') {
-                        showQuestionItem(flowItem);
+            tokenButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    if (locked) {
                         return;
                     }
 
-                    showStoryItem(flowItem);
-                }, delay);
-            };
+                    const key = button.dataset.tokenKey;
+                    const text = button.textContent.trim();
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'sentence-selected-token';
+                    chip.textContent = text;
 
-            startButton.addEventListener('click', () => {
-                startButton.hidden = true;
+                    const selectedToken = { key, text, button, node: chip };
+                    selectedTokens.push(selectedToken);
+                    button.hidden = true;
+                    slot.appendChild(chip);
+                    syncListeningState();
 
-                const prepLine = document.createElement('p');
-                prepLine.className = 'listening-muted-status';
-                prepLine.textContent = 'Bersiap... cerita akan mulai dalam 2 detik.';
-                history.appendChild(prepLine);
-                scrollToLatest();
-
-                window.setTimeout(() => {
-                    prepLine.remove();
-                    playFlowItem(0);
-                }, 2000);
+                    chip.addEventListener('click', () => {
+                        if (!locked) {
+                            returnToken(selectedToken);
+                        }
+                    });
+                });
             });
+
+            clearButton.addEventListener('click', () => {
+                if (!locked) {
+                    [...selectedTokens].forEach(returnToken);
+                }
+            });
+
+            checkButton.addEventListener('click', () => {
+                if (locked || selectedTokens.length !== tokens.length) {
+                    return;
+                }
+
+                locked = true;
+                const selectedSentence = selectedTokens.map((token) => token.text).join(' ');
+                const isCorrect = normalizeAnswer(selectedSentence) === normalizeAnswer(correctSentence);
+
+                if (isCorrect) {
+                    clearRetryFlag(question);
+                    completeQuestion(question);
+                    recordQuestionResult(question, true, selectedSentence);
+                    syncQuestionResults();
+                    showFeedback(true, question.explanation ? `Benar. ${question.explanation}` : 'Benar. Lanjut ke soal berikutnya.');
+
+                    window.setTimeout(() => {
+                        locked = false;
+                        goNext();
+                    }, 900);
+
+                    return;
+                }
+
+                showFeedback(false, 'Belum tepat. Dengarkan lagi dan susun ulang.');
+                window.setTimeout(() => {
+                    locked = false;
+                    questionCard.classList.remove('is-wrong');
+                    feedback.className = 'quiz-feedback';
+                    feedback.textContent = '';
+                }, 900);
+            });
+
+            playButton.addEventListener('click', playListeningAudio);
+            replayButton?.addEventListener('click', playListeningAudio);
+            syncListeningState();
+
+            if (!audioUrl) {
+                revealWorkbench();
+            }
         };
 
         const renderWordMatchQuestion = (question) => {
@@ -3178,77 +3205,87 @@
                         selectedLeft.classList.add('is-wrong');
                         tile.classList.add('is-wrong');
                         locked = true;
-                        const canContinue = registerWrongAttempt(question, `${selectedLeft.textContent.trim()} -> ${tile.textContent.trim()}`);
-
-                        if (!canContinue) {
-                            return;
-                        }
-
-                        showFeedback(false, 'Belum tepat. Soal matching ini akan muncul lagi nanti.');
+                        showFeedback(false, 'Belum cocok. Coba pasangan lain.');
                         window.setTimeout(() => {
+                            selectedLeft?.classList.remove('is-selected', 'is-wrong');
+                            tile.classList.remove('is-wrong');
+                            selectedLeft = null;
                             locked = false;
-                            goNext();
-                        }, 900);
+                            feedback.className = 'quiz-feedback';
+                            feedback.textContent = '';
+                            questionCard.classList.remove('is-wrong');
+                        }, 750);
                     }
                 });
             });
         };
 
         const renderReadingStoryQuestion = (question) => {
-            const segments = question.settings?.storySegments || [];
-            const configuredStoryQuestions = question.settings?.storyQuestions || [];
+            const configuredFlow = question.settings?.storyFlow || [];
+            const legacySegments = question.settings?.storySegments || [];
+            const legacyQuestions = question.settings?.storyQuestions || [];
+            const flow = configuredFlow.length > 0
+                ? configuredFlow
+                : [
+                    ...legacySegments.map((segment, segmentIndex) => ({
+                        type: 'dialogue',
+                        speaker: segment.speaker || `Tokoh ${segmentIndex + 1}`,
+                        side: segment.side || (segmentIndex % 2 === 0 ? 'left' : 'right'),
+                        text: segment.text || '',
+                        audioUrl: segment.audioUrl || '',
+                    })),
+                    ...(legacyQuestions.length > 0 ? legacyQuestions : [{
+                        id: 1,
+                        questionText: question.questionText,
+                        options: question.options || [],
+                        explanation: question.explanation || '',
+                    }]).map((storyQuestion) => ({
+                        type: 'question',
+                        questionText: storyQuestion.questionText || '',
+                        options: storyQuestion.options || [],
+                        explanation: storyQuestion.explanation || '',
+                    })),
+                ];
 
-            if (segments.length === 0) {
+            if (flow.length === 0) {
                 renderStandardQuestion(question);
                 return;
             }
 
-            const storyQuestions = configuredStoryQuestions.length > 0
-                ? configuredStoryQuestions
-                : [{
-                    id: 1,
-                    questionText: question.questionText,
-                    options: question.options || [],
-                    explanation: question.explanation || '',
-                }];
-
             questionBody.innerHTML = `
-                <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
-                <div class="story-panel" data-story-panel>
-                    <p class="story-text" data-story-text>Tekan mulai untuk memulai cerita.</p>
-                    <div class="story-segment-count" data-story-count>Segmen 0 / ${segments.length}</div>
-                    <p class="story-status" data-story-status></p>
-                    <button type="button" class="story-action-button" data-start-story>${escapeHtml(question.settings?.storyButtonLabel || 'Mulai')}</button>
-                    <button type="button" class="story-next-button" data-next-story hidden>Lanjut</button>
+                <div class="reading-story-stage">
+                    <div class="reading-start" data-reading-start>
+                        <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
+                        <h4 class="quiz-question-text">${escapeHtml(question.questionText || 'Reading Story')}</h4>
+                        <button type="button" class="story-action-button" data-start-story>${escapeHtml(question.settings?.storyButtonLabel || 'Mulai Reading')}</button>
+                    </div>
+                    <div class="reading-flow" data-reading-flow hidden></div>
                     <audio class="hidden-audio" data-story-audio></audio>
-                </div>
-                <div data-reading-question hidden>
-                    <span class="answer-zone-label" data-story-question-counter></span>
-                    <h4 class="quiz-question-text" data-story-question-text></h4>
-                    <div data-story-question-options></div>
                 </div>
             `;
 
-            const storyText = questionBody.querySelector('[data-story-text]');
+            questionBody.classList.add('is-reading-flow');
+            const startPanel = questionBody.querySelector('[data-reading-start]');
+            const flowWrap = questionBody.querySelector('[data-reading-flow]');
             const storyAudio = questionBody.querySelector('[data-story-audio]');
-            const storyCount = questionBody.querySelector('[data-story-count]');
-            const storyStatus = questionBody.querySelector('[data-story-status]');
             const startButton = questionBody.querySelector('[data-start-story]');
-            const nextButton = questionBody.querySelector('[data-next-story]');
-            const readingQuestion = questionBody.querySelector('[data-reading-question]');
-            const storyQuestionCounter = questionBody.querySelector('[data-story-question-counter]');
-            const storyQuestionText = questionBody.querySelector('[data-story-question-text]');
-            const storyQuestionOptions = questionBody.querySelector('[data-story-question-options]');
-            let segmentIndex = 0;
-            let storyQuestionIndex = 0;
+            let flowIndex = 0;
             let storyCorrectCount = 0;
+
+            const scrollToLatest = () => {
+                const latest = flowWrap.lastElementChild;
+
+                if (latest) {
+                    latest.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            };
 
             const completeReadingStory = () => {
                 clearRetryFlag(question);
                 completeQuestion(question);
                 recordQuestionResult(question, true, `reading_story_completed:${storyCorrectCount}`);
                 syncQuestionResults();
-                showFeedback(true, question.explanation ? `Reading selesai. ${question.explanation}` : 'Reading selesai. Kamu memahami cerita ini.');
+                showFeedback(true, question.explanation ? `Reading selesai. ${question.explanation}` : 'Reading selesai. Kamu memahami dialog ini.');
 
                 window.setTimeout(() => {
                     locked = false;
@@ -3256,54 +3293,65 @@
                 }, 1000);
             };
 
-            const renderStoryQuestion = () => {
-                const activeStoryQuestion = storyQuestions[storyQuestionIndex];
+            const continueFlow = (delay = 1000) => {
+                window.setTimeout(() => {
+                    flowIndex += 1;
+                    playFlowItem();
+                }, delay);
+            };
 
-                if (!activeStoryQuestion) {
-                    completeReadingStory();
-                    return;
-                }
-
+            const showQuestionItem = (flowItem) => {
                 locked = false;
-                storyQuestionCounter.textContent = `Pertanyaan cerita ${storyQuestionIndex + 1} / ${storyQuestions.length}`;
-                storyQuestionText.textContent = activeStoryQuestion.questionText || question.questionText || '';
-                storyQuestionOptions.innerHTML = renderOptions({
-                    ...question,
-                    options: activeStoryQuestion.options || [],
-                });
+                const options = (flowItem.options || []).length > 0 ? flowItem.options : (question.options || []);
+                const block = document.createElement('div');
+                block.className = 'reading-question-inline';
+                block.innerHTML = `
+                    <h4>${escapeHtml(flowItem.questionText || question.questionText || '')}</h4>
+                    <div class="reading-answer-grid">
+                        ${options.map((option, optionIndex) => `
+                            <button
+                                type="button"
+                                class="reading-answer-button"
+                                data-reading-answer
+                                data-correct="${option.isCorrect ? 'true' : 'false'}"
+                            >
+                                ${escapeHtml(option.text || `Jawaban ${optionIndex + 1}`)}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <p class="reading-inline-status" data-reading-question-status></p>
+                `;
 
-                storyQuestionOptions.querySelectorAll('[data-answer-option]').forEach((button) => {
+                flowWrap.appendChild(block);
+                scrollToLatest();
+
+                const status = block.querySelector('[data-reading-question-status]');
+                block.querySelectorAll('[data-reading-answer]').forEach((button) => {
                     button.addEventListener('click', () => {
                         if (locked) {
                             return;
                         }
 
-                        locked = true;
                         const isCorrect = button.dataset.correct === 'true';
                         const selectedText = selectedAnswerText(button);
 
                         if (isCorrect) {
+                            locked = true;
                             storyCorrectCount += 1;
                             button.classList.add('is-correct');
-                            storyQuestionOptions.querySelectorAll('[data-answer-option]').forEach((item) => {
+                            block.querySelectorAll('[data-reading-answer]').forEach((item) => {
                                 item.disabled = true;
                             });
-                            recordQuestionResult(question, true, selectedText);
-                            syncQuestionResults();
-                            showFeedback(true, activeStoryQuestion.explanation ? `Benar. ${activeStoryQuestion.explanation}` : 'Benar. Lanjut ke pertanyaan berikutnya.');
-
+                            status.textContent = flowItem.explanation ? `Benar. ${flowItem.explanation}` : 'Benar. Lanjut.';
                             window.setTimeout(() => {
-                                storyQuestionIndex += 1;
-                                resetFeedback();
-                                renderStoryQuestion();
-                            }, 850);
+                                continueFlow(0);
+                            }, 1000);
 
                             return;
                         }
 
                         button.classList.add('is-wrong');
-                        registerWrongAttempt(question, selectedText);
-                        showFeedback(false, 'Belum tepat. Baca dialognya lagi, lalu coba jawaban lain.');
+                        status.textContent = 'Belum tepat. Coba pahami dialognya lagi.';
 
                         window.setTimeout(() => {
                             locked = false;
@@ -3311,67 +3359,71 @@
                             questionCard.classList.remove('is-wrong');
                             feedback.className = 'quiz-feedback';
                             feedback.textContent = '';
-                        }, 900);
+                        }, 650);
                     });
                 });
             };
 
-            const revealQuestion = () => {
-                storyCount.textContent = 'Cerita selesai';
-                storyStatus.textContent = 'Sekarang jawab pertanyaan pemahaman.';
-                startButton.hidden = true;
-                nextButton.hidden = true;
-                readingQuestion.hidden = false;
-                renderStoryQuestion();
-            };
+            const showDialogueItem = (flowItem) => {
+                const line = document.createElement('div');
+                const side = flowItem.side === 'right' ? 'right' : 'left';
+                line.className = `reading-line is-${side}`;
+                line.innerHTML = `
+                    <span class="reading-line-speaker">${escapeHtml(flowItem.speaker || (side === 'right' ? 'Tokoh B' : 'Tokoh A'))}</span>
+                    <p class="reading-line-text">${escapeHtml(flowItem.text || '')}</p>
+                `;
 
-            const playSegment = () => {
-                if (segmentIndex >= segments.length) {
-                    revealQuestion();
+                flowWrap.appendChild(line);
+                scrollToLatest();
+
+                const next = () => continueFlow(1000);
+
+                if (!flowItem.audioUrl) {
+                    continueFlow(1000);
                     return;
                 }
 
-                const segment = segments[segmentIndex];
-                storyText.textContent = segment.text || '';
-                storyCount.textContent = `Segmen ${segmentIndex + 1} / ${segments.length}`;
-                storyStatus.textContent = 'Dengarkan cerita...';
-                startButton.hidden = true;
-                nextButton.hidden = true;
-
-                if (segment.audioUrl) {
-                    storyAudio.src = segment.audioUrl;
-                    playHiddenAudio(storyAudio, () => {
-                        segmentIndex += 1;
-                        playSegment();
-                    }, () => {
-                        storyStatus.textContent = 'Audio diblokir browser. Tekan lanjut untuk pindah ke bagian berikutnya.';
-                        nextButton.hidden = false;
-                    });
-                } else {
-                    window.setTimeout(() => {
-                        segmentIndex += 1;
-                        playSegment();
-                    }, 1800);
-                }
+                storyAudio.src = flowItem.audioUrl;
+                playHiddenAudio(storyAudio, next, next);
             };
 
-            startButton.addEventListener('click', () => {
-                storyStatus.textContent = 'Bersiap...';
-                window.setTimeout(() => {
-                    segmentIndex = 0;
-                    playSegment();
-                }, 2000);
-            });
+            function playFlowItem() {
+                if (flowIndex >= flow.length) {
+                    completeReadingStory();
+                    return;
+                }
 
-            nextButton.addEventListener('click', () => {
-                segmentIndex += 1;
-                playSegment();
+                const flowItem = flow[flowIndex];
+
+                if (flowItem.type === 'question') {
+                    showQuestionItem(flowItem);
+                    return;
+                }
+
+                showDialogueItem(flowItem);
+            }
+
+            startButton.addEventListener('click', () => {
+                startPanel.hidden = true;
+                flowWrap.hidden = false;
+
+                const prep = document.createElement('p');
+                prep.className = 'reading-line-text';
+                prep.textContent = 'Mulai';
+                flowWrap.appendChild(prep);
+
+                window.setTimeout(() => {
+                    prep.remove();
+                    flowIndex = 0;
+                    playFlowItem();
+                }, 900);
             });
         };
 
         const renderQuestion = () => {
             resetFeedback();
             locked = false;
+            questionBody.classList.remove('is-reading-flow');
             finishPanel.hidden = true;
             const question = questionQueue[index];
 
@@ -3403,11 +3455,6 @@
 
             if (question.type === 'reading_story') {
                 renderReadingStoryQuestion(question);
-                return;
-            }
-
-            if (question.type === 'video_question') {
-                renderVideoQuestion(question);
                 return;
             }
 

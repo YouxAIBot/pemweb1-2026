@@ -54,7 +54,7 @@ class AiQuestionGenerator extends Page
     {
         $this->validate([
             'learningLevelId' => ['required', 'integer', 'exists:learning_levels,id'],
-            'questionType' => ['required', 'in:multiple_choice,word_match,sentence_order,listening,real_case,mixed'],
+            'questionType' => ['required', 'in:multiple_choice,word_match,sentence_order,listening,reading_story,mixed'],
             'questionCount' => ['required', 'integer', 'min:1', 'max:10'],
             'targetLanguage' => ['required', 'string', 'max:80'],
             'difficulty' => ['required', 'string', 'max:40'],
@@ -177,27 +177,9 @@ class AiQuestionGenerator extends Page
     {
         if ($type === 'listening') {
             return [
-                'story_button_label' => 'Mulai',
-                'listening_flow' => collect($settings['listening_flow'] ?? [])->map(function (array $item) {
-                    if (($item['type'] ?? 'story') === 'question') {
-                        return [
-                            'type' => 'question',
-                            'question_text' => $item['question_text'] ?? '',
-                            'question_audio_path' => '',
-                            'options' => collect($item['options'] ?? [])->map(fn ($option) => [
-                                'text' => $option['text'] ?? '',
-                                'is_correct' => (bool) ($option['is_correct'] ?? false),
-                            ])->values()->all(),
-                            'explanation' => $item['explanation'] ?? '',
-                        ];
-                    }
-
-                    return [
-                        'type' => 'story',
-                        'story_text' => $item['story_text'] ?? '',
-                        'story_audio_path' => '',
-                    ];
-                })->values()->all(),
+                'sentence_tokens' => $settings['sentence_tokens'] ?? [],
+                'question_audio_path' => '',
+                'question_audio_manual_path' => '',
             ];
         }
 
@@ -213,10 +195,10 @@ class AiQuestionGenerator extends Page
             ];
         }
 
-        if ($type === 'real_case') {
+        if ($type === 'reading_story') {
             return [
-                'scenario_context' => $settings['scenario_context'] ?? '',
-                'ideal_response' => $settings['ideal_response'] ?? '',
+                'story_flow' => $settings['story_flow'] ?? [],
+                'story_button_label' => $settings['story_button_label'] ?? 'Mulai Reading',
             ];
         }
 

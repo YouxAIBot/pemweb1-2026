@@ -187,7 +187,7 @@ class ExpandedLanguageContentSeeder extends Seeder
                     'Kalimat "' . $item['foreign'] . '" berarti ' . $item['translation'] . '.',
                     $difficulty,
                     'Baca kalimat lalu pilih arti yang paling tepat.',
-                    $difficulty === 'hard' ? 'real_case' : 'multiple_choice',
+                    'multiple_choice',
                 );
             } else {
                 $questions[] = $this->choice(
@@ -197,7 +197,7 @@ class ExpandedLanguageContentSeeder extends Seeder
                     'Ungkapan yang tepat adalah "' . $item['foreign'] . '".',
                     $difficulty,
                     'Pilih kalimat yang paling natural.',
-                    $difficulty === 'hard' ? 'real_case' : 'multiple_choice',
+                    'multiple_choice',
                 );
             }
         }

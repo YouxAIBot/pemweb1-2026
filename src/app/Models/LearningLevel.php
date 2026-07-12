@@ -17,8 +17,6 @@ class LearningLevel extends Model
         'sentence_order' => 'Urutkan Kalimat',
         'listening' => 'Listening',
         'reading_story' => 'Reading Story',
-        'video_question' => 'Video Question',
-        'real_case' => 'Soal Nyata',
         'mixed' => 'Mix',
     ];
 

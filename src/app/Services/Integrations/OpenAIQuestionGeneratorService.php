@@ -84,10 +84,11 @@ Additional admin notes: {$notes}
 
 Rules:
 - Use short, original, beginner-friendly material unless difficulty says otherwise.
-- For multiple_choice, real_case, and mixed: include 2-4 answer options and mark exactly one correct option where possible.
-- For listening: create a listening_flow with story blocks and question blocks. Do not include audio paths.
+- For multiple_choice and mixed: include 2-4 answer options and mark exactly one correct option where possible.
+- For listening: create sentence_tokens in the correct order and set correct_answer to the full sentence. Do not include audio paths.
 - For word_match: create word_pairs in settings.
 - For sentence_order: create sentence_tokens in settings in the correct order, and set correct_answer to the full sentence.
+- For reading_story: create story_flow with dialogue blocks and question blocks in order. Put questions at natural checkpoints in the dialogue.
 - Keep explanations short and useful.
 - Output must match the JSON schema.
 PROMPT;
@@ -145,14 +146,23 @@ PROMPT;
             'required' => ['text'],
         ];
 
-        $storySegment = [
+        $storyFlowItem = [
             'type' => 'object',
             'additionalProperties' => false,
             'properties' => [
+                'type' => ['type' => 'string', 'enum' => ['dialogue', 'question']],
+                'speaker' => ['type' => 'string'],
+                'side' => ['type' => 'string', 'enum' => ['left', 'right']],
                 'text' => ['type' => 'string'],
                 'audio_path' => ['type' => 'string'],
+                'question_text' => ['type' => 'string'],
+                'options' => [
+                    'type' => 'array',
+                    'items' => $option,
+                ],
+                'explanation' => ['type' => 'string'],
             ],
-            'required' => ['text', 'audio_path'],
+            'required' => ['type', 'speaker', 'side', 'text', 'audio_path', 'question_text', 'options', 'explanation'],
         ];
 
         $listeningFlowItem = [
@@ -185,7 +195,7 @@ PROMPT;
                         'properties' => [
                             'type' => [
                                 'type' => 'string',
-                                'enum' => ['multiple_choice', 'word_match', 'sentence_order', 'listening', 'real_case', 'mixed'],
+                                'enum' => ['multiple_choice', 'word_match', 'sentence_order', 'listening', 'reading_story', 'mixed'],
                             ],
                             'instruction' => ['type' => 'string'],
                             'question_text' => ['type' => 'string'],
@@ -213,14 +223,12 @@ PROMPT;
                                         'type' => 'array',
                                         'items' => $sentenceToken,
                                     ],
-                                    'scenario_context' => ['type' => 'string'],
-                                    'ideal_response' => ['type' => 'string'],
-                                    'story_segments' => [
+                                    'story_flow' => [
                                         'type' => 'array',
-                                        'items' => $storySegment,
+                                        'items' => $storyFlowItem,
                                     ],
                                 ],
-                                'required' => ['listening_flow', 'word_pairs', 'sentence_tokens', 'scenario_context', 'ideal_response', 'story_segments'],
+                                'required' => ['listening_flow', 'word_pairs', 'sentence_tokens', 'story_flow'],
                             ],
                         ],
                         'required' => ['type', 'instruction', 'question_text', 'correct_answer', 'explanation', 'points', 'time_limit', 'options', 'settings'],
