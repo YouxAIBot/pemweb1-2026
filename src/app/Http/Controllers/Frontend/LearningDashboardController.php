@@ -390,7 +390,7 @@ class LearningDashboardController extends Controller
 
         $games = GameMode::query()
             ->active()
-            ->whereNotIn('key', ['daily_boss'])
+            ->whereNotIn('key', ['daily_boss', 'video_question'])
             ->orderBy('sort_order')
             ->get();
 
@@ -456,7 +456,7 @@ class LearningDashboardController extends Controller
 
         $games = GameMode::query()
             ->active()
-            ->whereNotIn('key', ['daily_boss'])
+            ->whereNotIn('key', ['daily_boss', 'video_question'])
             ->orderBy('sort_order')
             ->get()
             ->map(function (GameMode $game) {
@@ -519,6 +519,8 @@ class LearningDashboardController extends Controller
         if (! $profile?->onboarding_completed_at) {
             return redirect()->route('learning.onboarding');
         }
+
+        return redirect()->route('learning.duel.lobby', ['mode' => 'fast']);
 
         $questions = $this->randomLearningQuestionsForMode(
             (int) $profile->learning_language_id,

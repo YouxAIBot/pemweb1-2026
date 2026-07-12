@@ -3,6 +3,9 @@
 @section('title', 'Duel 1v1 - YoLearning')
 
 @section('content')
+@php
+    $isFastBattle = ($battleMode ?? 'duel') === 'fast';
+@endphp
 <div class="duel-lobby-page">
     <header class="duel-topbar">
         <a href="{{ route('learning.games') }}" class="duel-back">← Turnamen</a>
@@ -16,8 +19,8 @@
         <section class="duel-hero-card">
             <div class="duel-hero-copy">
                 <span class="duel-kicker">Mode Kompetitif</span>
-                <h1>Duel 1v1</h1>
-                <p>Cari lawan, masuk arena VS, countdown 3 detik, lalu jawab 10 soal mix. Setiap soal punya waktu 10 detik.</p>
+                <h1>{{ $isFastBattle ? 'Turnamen Cepat' : 'Duel 1v1' }}</h1>
+                <p>{{ $isFastBattle ? 'Cari lawan, masuk arena cepat, lalu jawab 5 soal mix. Setiap soal hanya punya waktu 5 detik.' : 'Cari lawan, masuk arena VS, countdown 3 detik, lalu jawab 10 soal mix. Setiap soal punya waktu 10 detik.' }}</p>
             </div>
 
             <div class="duel-score-rules">
@@ -36,18 +39,24 @@
             </div>
 
             <form class="duel-find-panel" data-duel-find-form>
-                <label>Difficulty Arena</label>
-                <select name="difficulty" class="duel-select">
-                    <option value="normal">Normal Arena</option>
-                    <option value="easy">Easy Arena</option>
-                    <option value="hard">Hard Arena</option>
-                </select>
+                @if ($isFastBattle)
+                    <input type="hidden" name="difficulty" value="fast">
+                    <label>Mode Arena</label>
+                    <div class="duel-select duel-static-mode">Fast Battle - 5 soal / 5 detik</div>
+                @else
+                    <label>Difficulty Arena</label>
+                    <select name="difficulty" class="duel-select">
+                        <option value="normal">Normal Arena</option>
+                        <option value="easy">Easy Arena</option>
+                        <option value="hard">Hard Arena</option>
+                    </select>
+                @endif
                 <p class="duel-match-note">
-                    Match dicari untuk bahasa {{ $profile->language?->name ?? 'aktif' }} dan difficulty yang sama. Untuk test 2 akun, buka akun kedua di incognito atau browser lain.
+                    Match dicari untuk bahasa {{ $profile->language?->name ?? 'aktif' }} dan {{ $isFastBattle ? 'mode cepat yang sama' : 'difficulty yang sama' }}. Untuk test 2 akun, buka akun kedua di incognito atau browser lain.
                 </p>
 
-                <button type="submit" class="duel-primary-btn" data-find-button>
-                    Cari Lawan
+                <button type="submit" class="duel-primary-btn" data-find-button data-ready-label="{{ $isFastBattle ? 'Cari Lawan Cepat' : 'Cari Lawan' }}">
+                    {{ $isFastBattle ? 'Cari Lawan Cepat' : 'Cari Lawan' }}
                 </button>
 
                 <button type="button" class="duel-ghost-btn" data-cancel-button hidden>
@@ -431,7 +440,7 @@
     const setWaiting = (waiting) => {
         findBtn.disabled = waiting;
         cancelBtn.hidden = !waiting;
-        findBtn.textContent = waiting ? 'Mencari...' : 'Cari Lawan';
+        findBtn.textContent = waiting ? 'Mencari...' : (findBtn.dataset.readyLabel || 'Cari Lawan');
     };
 
     const redirectIfMatched = (payload) => {

@@ -451,6 +451,7 @@ class QuizRoomController extends Controller
             ->get()
             ->values()
             ->map(fn (QuizRoomMember $member, int $index) => [
+                'user_id' => $member->user_id,
                 'position' => $member->position ?? $index + 1,
                 'name' => $member->user?->name ?? 'User',
                 'score' => $member->score,

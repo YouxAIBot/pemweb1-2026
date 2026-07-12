@@ -8,7 +8,6 @@
         'tournament' => ['emoji' => '⚡', 'label' => 'Fast Battle', 'class' => 'visual-fast'],
         'duel_1v1' => ['emoji' => '⚔', 'label' => '1v1 Match', 'class' => 'visual-duel'],
         'kahoot_quiz' => ['emoji' => '🎯', 'label' => 'Quiz Room', 'class' => 'visual-quiz'],
-        'video_question' => ['emoji' => '▶', 'label' => 'Video Quiz', 'class' => 'visual-video'],
     ];
 @endphp
 <div class="simple-page">
@@ -27,6 +26,9 @@
         <section class="simple-mode-grid">
             @forelse ($games as $game)
                 @php
+                    if ($game->key === 'video_question') {
+                        continue;
+                    }
                     $playable = $game->isPlayable() && Route::has($game->route_name);
                     $href = $playable ? route($game->route_name) : '#';
                     $visual = $visuals[$game->key] ?? ['emoji' => $game->icon_label ?: '•', 'label' => 'Mode', 'class' => 'visual-default'];

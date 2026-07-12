@@ -60,6 +60,7 @@ class DuelController extends Controller
             'stats' => $stats,
             'leaderboard' => $leaderboard,
             'history' => $history,
+            'battleMode' => $request->query('mode') === 'fast' ? 'fast' : 'duel',
         ]);
     }
 
@@ -111,7 +112,7 @@ class DuelController extends Controller
         }
 
         $data = $request->validate([
-            'difficulty' => ['nullable', 'in:easy,normal,hard'],
+            'difficulty' => ['nullable', 'in:easy,normal,hard,fast'],
         ]);
 
         $difficulty = $data['difficulty'] ?? 'normal';
@@ -186,18 +187,23 @@ class DuelController extends Controller
                 return null;
             }
 
+            $isFastBattle = $difficulty === 'fast';
+            $questionCount = $isFastBattle ? 5 : 10;
+            $secondsPerQuestion = $isFastBattle ? 5 : 10;
+
             $session = DuelSession::create([
                 'code' => Str::upper(Str::random(8)),
                 'learning_language_id' => $languageId,
                 'player_one_id' => $opponentQueue->user_id,
                 'player_two_id' => $user->id,
                 'difficulty' => $difficulty,
-                'question_count' => 10,
-                'seconds_per_question' => 10,
+                'question_count' => $questionCount,
+                'seconds_per_question' => $secondsPerQuestion,
                 'status' => 'preparing',
                 'settings' => [
                     'score_base' => 100,
                     'speed_bonus_max' => 50,
+                    'battle_mode' => $isFastBattle ? 'fast_battle' : 'duel_1v1',
                     'generator' => 'local_mixed',
                 ],
                 'started_at' => now(),
@@ -230,7 +236,7 @@ class DuelController extends Controller
                 'matched_at' => now(),
             ]);
 
-            $generator->generateForSession($session, 10);
+            $generator->generateForSession($session, $questionCount);
 
             $session->update(['status' => 'playing']);
 
@@ -243,6 +249,7 @@ class DuelController extends Controller
                 'message' => 'Menunggu lawan...',
                 'language' => $profile->language?->name,
                 'difficulty' => $difficulty,
+                'mode' => $difficulty === 'fast' ? 'fast_battle' : 'duel_1v1',
             ]);
         }
 
@@ -284,8 +291,9 @@ class DuelController extends Controller
         return response()->json([
             'status' => 'waiting',
             'language_id' => $queue->learning_language_id,
-            'difficulty' => $queue->difficulty,
-        ]);
+                'difficulty' => $queue->difficulty,
+                'mode' => $queue->difficulty === 'fast' ? 'fast_battle' : 'duel_1v1',
+            ]);
     }
 
     public function cancelQueue(Request $request): JsonResponse
@@ -529,7 +537,7 @@ class DuelController extends Controller
             ]);
 
             foreach ($players as $player) {
-                app(DailyMissionProgressService::class)->addProgress($player->user, 'questions_answered', 10);
+                app(DailyMissionProgressService::class)->addProgress($player->user, 'questions_answered', $lockedSession->questions()->count());
                 app(DailyMissionProgressService::class)->addProgress($player->user, 'study_minutes', 2);
             }
         });
