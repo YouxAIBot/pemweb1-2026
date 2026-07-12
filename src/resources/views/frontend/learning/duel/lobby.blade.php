@@ -41,15 +41,33 @@
             <form class="duel-find-panel" data-duel-find-form>
                 @if ($isFastBattle)
                     <input type="hidden" name="difficulty" value="fast">
-                    <label>Mode Arena</label>
+                    <label class="duel-field-label">Mode Arena</label>
                     <div class="duel-select duel-static-mode">Fast Battle - 5 soal / 5 detik</div>
                 @else
-                    <label>Difficulty Arena</label>
-                    <select name="difficulty" class="duel-select">
-                        <option value="normal">Normal Arena</option>
-                        <option value="easy">Easy Arena</option>
-                        <option value="hard">Hard Arena</option>
-                    </select>
+                    <label class="duel-field-label">Pilih Tingkat Soal</label>
+                    <div class="duel-difficulty-group" role="radiogroup" aria-label="Pilih tingkat soal duel">
+                        <label class="duel-difficulty-card">
+                            <input type="radio" name="difficulty" value="easy">
+                            <span>
+                                <strong>Easy</strong>
+                                <small>Soal dasar dan kosakata ringan</small>
+                            </span>
+                        </label>
+                        <label class="duel-difficulty-card">
+                            <input type="radio" name="difficulty" value="normal" checked>
+                            <span>
+                                <strong>Normal</strong>
+                                <small>Campuran grammar dan pemahaman</small>
+                            </span>
+                        </label>
+                        <label class="duel-difficulty-card">
+                            <input type="radio" name="difficulty" value="hard">
+                            <span>
+                                <strong>Hard</strong>
+                                <small>Soal sulit, konteks, dan listening</small>
+                            </span>
+                        </label>
+                    </div>
                 @endif
                 <p class="duel-match-note">
                     Match dicari untuk bahasa {{ $profile->language?->name ?? 'aktif' }} dan {{ $isFastBattle ? 'mode cepat yang sama' : 'difficulty yang sama' }}. Untuk test 2 akun, buka akun kedua di incognito atau browser lain.
@@ -93,7 +111,7 @@
                 <div class="duel-card-head">
                     <div>
                         <small>Leaderboard</small>
-                        <h3>Duel Rank</h3>
+                        <h3>{{ $isFastBattle ? 'Fast Battle Rank' : 'Duel Rank' }}</h3>
                     </div>
                     <span>Top 12</span>
                 </div>
@@ -106,7 +124,7 @@
                             <em>{{ $row->rank_label }} · {{ $row->rating }}</em>
                         </div>
                     @empty
-                        <p class="duel-empty">Belum ada leaderboard duel.</p>
+                        <p class="duel-empty">Belum ada leaderboard {{ $isFastBattle ? 'turnamen cepat' : 'duel' }}.</p>
                     @endforelse
                 </div>
             </article>
@@ -287,7 +305,7 @@
         padding: 1rem;
     }
 
-    .duel-find-panel label {
+    .duel-field-label {
         color: var(--muted);
         font-size: .82rem;
         font-weight: 950;
@@ -304,8 +322,67 @@
         outline: none;
     }
 
-    .duel-select option {
-        color: #111827;
+    .duel-difficulty-group {
+        display: grid;
+        gap: .55rem;
+    }
+
+    .duel-difficulty-card {
+        cursor: pointer;
+        display: block;
+    }
+
+    .duel-difficulty-card input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .duel-difficulty-card span {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .85rem;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, .055);
+        padding: .8rem .9rem;
+        color: var(--text);
+        transition: border-color .18s ease, background .18s ease, transform .18s ease;
+    }
+
+    .duel-difficulty-card strong {
+        font-size: .92rem;
+        font-weight: 950;
+    }
+
+    .duel-difficulty-card small {
+        max-width: 150px;
+        color: var(--muted);
+        font-size: .68rem;
+        font-weight: 850;
+        letter-spacing: 0;
+        line-height: 1.3;
+        text-align: right;
+        text-transform: none;
+    }
+
+    .duel-difficulty-card:hover span {
+        border-color: rgba(102, 232, 247, .38);
+        background: rgba(102, 232, 247, .08);
+        transform: translateY(-1px);
+    }
+
+    .duel-difficulty-card input:checked + span {
+        border-color: rgba(102, 232, 247, .72);
+        background: linear-gradient(135deg, rgba(102, 232, 247, .18), rgba(110, 124, 247, .16));
+        box-shadow: inset 0 0 0 1px rgba(102, 232, 247, .12);
+    }
+
+    .duel-difficulty-card input:focus-visible + span {
+        outline: 2px solid rgba(102, 232, 247, .8);
+        outline-offset: 3px;
     }
 
     .duel-primary-btn,

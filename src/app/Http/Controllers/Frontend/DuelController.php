@@ -33,19 +33,19 @@ class DuelController extends Controller
             return redirect()->route('learning.onboarding');
         }
 
-        $stats = $this->statsForUserLanguage($user->id, $profile->learning_language_id);
-        $leaderboard = DuelPlayerStat::query()
-            ->with('user:id,name,email')
-            ->where('learning_language_id', $profile->learning_language_id)
-            ->orderByDesc('rating')
-            ->orderByDesc('wins')
-            ->take(12)
-            ->get();
+        $battleMode = $request->query('mode') === 'fast' ? 'fast' : 'duel';
+        $stats = $this->modeStatsForUserLanguage($user->id, $profile->learning_language_id, $battleMode);
+        $leaderboard = $this->modeLeaderboardForLanguage($profile->learning_language_id, $battleMode, 12);
 
         $history = DuelSession::query()
             ->with(['playerOne:id,name,email', 'playerTwo:id,name,email', 'winner:id,name', 'players'])
             ->where('status', 'finished')
             ->where('learning_language_id', $profile->learning_language_id)
+            ->when(
+                $battleMode === 'fast',
+                fn ($query) => $query->where('difficulty', 'fast'),
+                fn ($query) => $query->where('difficulty', '!=', 'fast')
+            )
             ->where(function ($query) use ($user) {
                 $query->where('player_one_id', $user->id)
                     ->orWhere('player_two_id', $user->id);
@@ -60,7 +60,7 @@ class DuelController extends Controller
             'stats' => $stats,
             'leaderboard' => $leaderboard,
             'history' => $history,
-            'battleMode' => $request->query('mode') === 'fast' ? 'fast' : 'duel',
+            'battleMode' => $battleMode,
         ]);
     }
 
@@ -291,9 +291,9 @@ class DuelController extends Controller
         return response()->json([
             'status' => 'waiting',
             'language_id' => $queue->learning_language_id,
-                'difficulty' => $queue->difficulty,
-                'mode' => $queue->difficulty === 'fast' ? 'fast_battle' : 'duel_1v1',
-            ]);
+            'difficulty' => $queue->difficulty,
+            'mode' => $queue->difficulty === 'fast' ? 'fast_battle' : 'duel_1v1',
+        ]);
     }
 
     public function cancelQueue(Request $request): JsonResponse
@@ -416,7 +416,8 @@ class DuelController extends Controller
 
             $selected = $data['selected_answer'] ?? null;
             $isCorrect = filled($selected) && trim((string) $selected) === trim((string) $question->correct_answer);
-            $elapsedMs = min(max((int) $data['answer_time_ms'], 0), 10000);
+            $limitMs = max((int) $duelSession->seconds_per_question, 1) * 1000;
+            $elapsedMs = min(max((int) $data['answer_time_ms'], 0), $limitMs);
             $score = $this->scoreForAnswer($isCorrect, $elapsedMs, (int) $duelSession->seconds_per_question);
 
             $answer = DuelAnswer::create([
@@ -527,7 +528,9 @@ class DuelController extends Controller
                     'finished_at' => now(),
                 ]);
 
-                $this->applyStats($player, $result);
+                if ($lockedSession->difficulty !== 'fast') {
+                    $this->applyStats($player, $result);
+                }
             }
 
             $lockedSession->update([
@@ -567,6 +570,84 @@ class DuelController extends Controller
         $stats->total_score += (int) $player->score;
         $stats->best_score = max((int) $stats->best_score, (int) $player->score);
         $stats->save();
+    }
+
+    private function modeStatsForUserLanguage(int $userId, ?int $languageId, string $mode): DuelPlayerStat
+    {
+        $row = DuelPlayer::query()
+            ->selectRaw('COUNT(*) as matches')
+            ->selectRaw("SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins")
+            ->selectRaw("SUM(CASE WHEN result = 'lose' THEN 1 ELSE 0 END) as losses")
+            ->selectRaw("SUM(CASE WHEN result = 'draw' THEN 1 ELSE 0 END) as draws")
+            ->selectRaw('COALESCE(SUM(score), 0) as total_score')
+            ->selectRaw('COALESCE(MAX(score), 0) as best_score')
+            ->where('user_id', $userId)
+            ->whereHas('session', function ($query) use ($languageId, $mode) {
+                $query->where('status', 'finished')
+                    ->when($languageId, fn ($languageQuery) => $languageQuery->where('learning_language_id', $languageId))
+                    ->when(
+                        $mode === 'fast',
+                        fn ($modeQuery) => $modeQuery->where('difficulty', 'fast'),
+                        fn ($modeQuery) => $modeQuery->where('difficulty', '!=', 'fast')
+                    );
+            })
+            ->first();
+
+        $wins = (int) ($row?->wins ?? 0);
+        $losses = (int) ($row?->losses ?? 0);
+        $draws = (int) ($row?->draws ?? 0);
+        $rating = max(100, 1000 + ($wins * 25) - ($losses * 15) + ($draws * 5));
+
+        return new DuelPlayerStat([
+            'user_id' => $userId,
+            'learning_language_id' => $languageId,
+            'rating' => $rating,
+            'rank_label' => DuelPlayerStat::rankFromRating($rating),
+            'matches' => (int) ($row?->matches ?? 0),
+            'wins' => $wins,
+            'losses' => $losses,
+            'draws' => $draws,
+            'total_score' => (int) ($row?->total_score ?? 0),
+            'best_score' => (int) ($row?->best_score ?? 0),
+        ]);
+    }
+
+    private function modeLeaderboardForLanguage(?int $languageId, string $mode, int $limit)
+    {
+        return DuelPlayer::query()
+            ->select('user_id')
+            ->selectRaw('COUNT(*) as matches')
+            ->selectRaw("SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins")
+            ->selectRaw("SUM(CASE WHEN result = 'lose' THEN 1 ELSE 0 END) as losses")
+            ->selectRaw("SUM(CASE WHEN result = 'draw' THEN 1 ELSE 0 END) as draws")
+            ->selectRaw('COALESCE(SUM(score), 0) as total_score')
+            ->selectRaw('COALESCE(MAX(score), 0) as best_score')
+            ->with('user:id,name,email')
+            ->whereHas('session', function ($query) use ($languageId, $mode) {
+                $query->where('status', 'finished')
+                    ->when($languageId, fn ($languageQuery) => $languageQuery->where('learning_language_id', $languageId))
+                    ->when(
+                        $mode === 'fast',
+                        fn ($modeQuery) => $modeQuery->where('difficulty', 'fast'),
+                        fn ($modeQuery) => $modeQuery->where('difficulty', '!=', 'fast')
+                    );
+            })
+            ->groupBy('user_id')
+            ->orderByDesc('wins')
+            ->orderByDesc('total_score')
+            ->limit($limit)
+            ->get()
+            ->map(function (DuelPlayer $row) {
+                $wins = (int) ($row->wins ?? 0);
+                $losses = (int) ($row->losses ?? 0);
+                $draws = (int) ($row->draws ?? 0);
+                $rating = max(100, 1000 + ($wins * 25) - ($losses * 15) + ($draws * 5));
+
+                $row->setAttribute('rating', $rating);
+                $row->setAttribute('rank_label', DuelPlayerStat::rankFromRating($rating));
+
+                return $row;
+            });
     }
 
     private function statsForUserLanguage(int $userId, ?int $languageId): DuelPlayerStat

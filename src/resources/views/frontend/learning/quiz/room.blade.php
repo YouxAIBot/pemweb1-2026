@@ -210,6 +210,7 @@
 <style>
     html, body { min-height: 100%; overflow-y: auto; }
     html.quiz-focus-active, html.quiz-focus-active body { height: 100%; overflow: hidden; }
+    .quiz-page [hidden] { display: none !important; }
     .quiz-page { min-height: 100vh; padding: 1rem; background: #080d18; }
     .quiz-top, .quiz-shell { width: min(1240px, 100%); margin-inline: auto; }
     .quiz-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
@@ -393,7 +394,10 @@
     let submitted = false;
 
     const showPlay = () => {
-        countdown?.setAttribute('hidden', 'hidden');
+        if (countdown) {
+            countdown.setAttribute('hidden', 'hidden');
+            countdown.style.display = 'none';
+        }
         playUi.hidden = false;
         buttons.forEach((button) => button.disabled = false);
         startTimer();
