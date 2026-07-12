@@ -26,13 +26,30 @@
         $settings = $question->settings ?? [];
 
         $storySegments = collect($settings['story_segments'] ?? [])->map(function ($segment) {
-            $audioPath = $segment['audio_path'] ?? null;
+            $audioPath = $segment['audio_manual_path'] ?? ($segment['audio_path'] ?? null);
 
             return [
                 'text' => $segment['text'] ?? '',
                 'audioUrl' => learningAudioUrl($audioPath),
             ];
         })->values();
+
+        $storyQuestions = collect($settings['story_questions'] ?? [])->map(function ($storyQuestion, $storyQuestionIndex) {
+            $options = collect($storyQuestion['options'] ?? [])->map(function ($option, $optionIndex) {
+                return [
+                    'id' => $optionIndex + 1,
+                    'text' => $option['text'] ?? '',
+                    'isCorrect' => (bool) ($option['is_correct'] ?? false),
+                ];
+            })->filter(fn ($option) => filled($option['text']))->values();
+
+            return [
+                'id' => $storyQuestionIndex + 1,
+                'questionText' => $storyQuestion['question_text'] ?? '',
+                'options' => $options,
+                'explanation' => $storyQuestion['explanation'] ?? '',
+            ];
+        })->filter(fn ($storyQuestion) => filled($storyQuestion['questionText']))->values();
 
         $listeningFlow = collect($settings['listening_flow'] ?? [])->map(function ($item, $itemIndex) {
             $type = $item['type'] ?? ($item['item_type'] ?? 'story');
@@ -116,6 +133,13 @@
             ];
         })->values();
 
+        $sentenceTokens = collect($settings['sentence_tokens'] ?? [])->map(function ($token, $index) {
+            return [
+                'id' => $index + 1,
+                'text' => is_array($token) ? ($token['text'] ?? '') : $token,
+            ];
+        })->filter(fn ($token) => filled($token['text']))->values();
+
         return [
             'id' => $question->id,
             'type' => $question->type,
@@ -139,8 +163,10 @@
                 'learningPhraseTranslation' => $settings['learning_phrase_translation'] ?? null,
                 'learningPhraseAudioUrl' => learningAudioUrl($settings['learning_phrase_audio_manual_path'] ?? ($settings['learning_phrase_audio_path'] ?? null)) ?: learningAudioUrl($question->audio_path),
                 'storySegments' => $storySegments,
+                'storyQuestions' => $storyQuestions,
                 'listeningFlow' => $listeningFlow,
                 'wordPairs' => $wordPairs,
+                'sentenceTokens' => $sentenceTokens,
                 'videoUrl' => learningAudioUrl($settings['video_path'] ?? null) ?: ($settings['video_url'] ?? null),
                 'videoTranscript' => $settings['video_transcript'] ?? null,
                 'mustWatchSeconds' => (int) ($settings['must_watch_seconds'] ?? 5),
@@ -219,8 +245,15 @@
                             <h3 data-question-title>Memuat soal...</h3>
                         </div>
 
-                        <div class="quiz-score-pill">
-                            <span data-correct-count>0</span> benar
+                        <div class="quiz-top-meta">
+                            <div class="quiz-life-pill" data-life-pill>
+                                <span>Nyawa</span>
+                                <div class="quiz-life-dots" data-life-dots aria-label="Sisa nyawa"></div>
+                            </div>
+
+                            <div class="quiz-score-pill">
+                                <span data-correct-count>0</span> selesai
+                            </div>
                         </div>
                     </div>
 
@@ -391,6 +424,15 @@
         letter-spacing: -0.04em;
     }
 
+    .quiz-top-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .quiz-life-pill,
     .quiz-score-pill {
         border: 1px solid rgba(102, 232, 247, 0.22);
         border-radius: 999px;
@@ -399,6 +441,36 @@
         padding: 0.55rem 0.8rem;
         font-weight: 950;
         white-space: nowrap;
+    }
+
+    .quiz-life-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .quiz-life-pill.is-free-mode {
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+    }
+
+    .quiz-life-dots {
+        display: inline-flex;
+        gap: 0.28rem;
+    }
+
+    .quiz-life-dot {
+        width: 0.62rem;
+        height: 0.62rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #7cf06b, #66e8f7);
+        box-shadow: 0 0 16px rgba(102, 232, 247, 0.28);
+    }
+
+    .quiz-life-dot.is-lost {
+        background: rgba(255, 255, 255, 0.14);
+        box-shadow: none;
     }
 
     .quiz-progress-track {
@@ -670,6 +742,16 @@
         transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
     }
 
+    .answer-slot.is-clickable {
+        border-style: solid;
+        cursor: pointer;
+    }
+
+    .answer-slot.is-clickable:hover {
+        transform: translateY(-2px);
+        border-color: rgba(102, 232, 247, 0.5);
+    }
+
     .answer-slot.is-filled {
         border-style: solid;
         border-color: rgba(102, 232, 247, 0.36);
@@ -707,6 +789,10 @@
         border-color: rgba(102, 232, 247, 0.58);
         background: rgba(102, 232, 247, 0.14);
         transform: translateY(-3px);
+    }
+
+    .answer-token[hidden] {
+        display: none;
     }
 
     .answer-token.is-correct {
@@ -748,6 +834,29 @@
     .answer-action-bar {
         border-top: 1px solid rgba(255, 255, 255, 0.12);
         padding-top: 0.85rem;
+    }
+
+    .sentence-answer-row {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        min-height: 58px;
+    }
+
+    .sentence-selected-token {
+        border: 1px solid rgba(102, 232, 247, 0.36);
+        border-radius: 14px;
+        background: rgba(102, 232, 247, 0.1);
+        color: #effcff;
+        padding: 0.72rem 0.86rem;
+        font-weight: 1000;
+        cursor: pointer;
+        animation: answerDrop 0.22s ease both;
+    }
+
+    .sentence-selected-token:hover {
+        background: rgba(102, 232, 247, 0.16);
     }
 
     .skip-question-button,
@@ -1641,6 +1750,15 @@
         };
 
         const questions = parseJson(quizEngine.dataset.questions, []);
+        const questionQueue = questions.map((question, originalIndex) => ({
+            ...question,
+            originalIndex,
+            queueKey: `${question.id || originalIndex}-0`,
+            retryRound: 0,
+        }));
+        const initialQuestionTotal = questions.length;
+        const noLifeQuestionTypes = new Set(['reading_story', 'listening']);
+        const maxLives = 5;
         const startedAt = Date.now();
         const currentNumber = quizEngine.querySelector('[data-current-number]');
         const totalNumber = quizEngine.querySelector('[data-total-number]');
@@ -1651,6 +1769,8 @@
         const feedback = quizEngine.querySelector('[data-feedback]');
         const progressBar = quizEngine.querySelector('[data-progress-bar]');
         const correctCountNode = quizEngine.querySelector('[data-correct-count]');
+        const lifePill = quizEngine.querySelector('[data-life-pill]');
+        const lifeDots = quizEngine.querySelector('[data-life-dots]');
         const finishPanel = quizEngine.querySelector('[data-finish-panel]');
         const completeForm = quizEngine.querySelector('[data-complete-form]');
         const studySecondsInput = quizEngine.querySelector('[data-study-seconds]');
@@ -1672,13 +1792,16 @@
 
         let index = 0;
         let correctCount = 0;
+        let lives = maxLives;
         let locked = false;
         let exitAdShown = false;
         let activeAdTimer = null;
         const questionResults = new Map();
+        const completedQuestionIds = new Set();
+        const queuedRetryKeys = new Set();
 
-        totalNumber.textContent = questions.length;
-        totalInput.value = questions.length;
+        totalNumber.textContent = initialQuestionTotal;
+        totalInput.value = initialQuestionTotal;
 
         const escapeHtml = (value) => {
             return String(value || '')
@@ -1723,6 +1846,14 @@
 
         const shuffle = (items) => {
             return [...items].sort(() => Math.random() - 0.5);
+        };
+
+        const normalizeAnswer = (value) => {
+            return String(value || '')
+                .toLowerCase()
+                .replace(/[^\p{L}\p{N}\s]/gu, '')
+                .replace(/\s+/g, ' ')
+                .trim();
         };
 
         let transientAudio = null;
@@ -1829,6 +1960,106 @@
             questionResultsInput.value = JSON.stringify(Array.from(questionResults.values()));
         };
 
+        const questionIdentity = (question) => String(question?.id ?? question?.originalIndex ?? question?.queueKey ?? '');
+
+        const isNoLifeQuestion = (question) => noLifeQuestionTypes.has(question?.type);
+
+        const updateLives = (question = questionQueue[index]) => {
+            if (!lifePill || !lifeDots) {
+                return;
+            }
+
+            if (isNoLifeQuestion(question)) {
+                lifePill.classList.add('is-free-mode');
+                lifePill.firstElementChild.textContent = 'Bebas nyawa';
+                lifeDots.innerHTML = '';
+                return;
+            }
+
+            lifePill.classList.remove('is-free-mode');
+            lifePill.firstElementChild.textContent = 'Nyawa';
+            lifeDots.innerHTML = Array.from({ length: maxLives }).map((_, dotIndex) => (
+                `<span class="quiz-life-dot ${dotIndex >= lives ? 'is-lost' : ''}"></span>`
+            )).join('');
+        };
+
+        const completeQuestion = (question) => {
+            const key = questionIdentity(question);
+
+            if (!completedQuestionIds.has(key)) {
+                completedQuestionIds.add(key);
+                correctCount = completedQuestionIds.size;
+                correctCountNode.textContent = correctCount;
+                correctInput.value = correctCount;
+            }
+        };
+
+        const queueRetryQuestion = (question) => {
+            if (!question || isNoLifeQuestion(question)) {
+                return;
+            }
+
+            const key = questionIdentity(question);
+
+            if (completedQuestionIds.has(key) || queuedRetryKeys.has(key)) {
+                return;
+            }
+
+            queuedRetryKeys.add(key);
+            questionQueue.push({
+                ...question,
+                retryRound: (question.retryRound || 0) + 1,
+                queueKey: `${key}-${(question.retryRound || 0) + 1}`,
+                isRetry: true,
+            });
+        };
+
+        const clearRetryFlag = (question) => {
+            queuedRetryKeys.delete(questionIdentity(question));
+        };
+
+        const failLevel = () => {
+            locked = true;
+            resetFeedback();
+            questionTitle.textContent = 'Nyawa habis';
+            questionType.textContent = 'Ulangi level';
+            progressBar.style.width = '0%';
+            updateLives(questionQueue[index]);
+            questionBody.innerHTML = `
+                <div class="quiz-context-box">
+                    <strong>Level belum selesai</strong>
+                    <p>Kesempatanmu habis. Ulangi level dari awal supaya pondasinya benar-benar kuat.</p>
+                </div>
+                <div class="answer-action-bar">
+                    <button type="button" class="check-answer-button" data-restart-level>Ulangi Level</button>
+                    <a class="skip-question-button" href="{{ route('learning.parts.show', $part) }}">Kembali ke Peta</a>
+                </div>
+            `;
+            questionBody.querySelector('[data-restart-level]')?.addEventListener('click', () => {
+                window.location.reload();
+            });
+        };
+
+        const registerWrongAttempt = (question, selectedAnswer = null) => {
+            recordQuestionResult(question, false, selectedAnswer);
+            syncQuestionResults();
+
+            if (isNoLifeQuestion(question)) {
+                return true;
+            }
+
+            lives = Math.max(0, lives - 1);
+            updateLives(question);
+            queueRetryQuestion(question);
+
+            if (lives <= 0) {
+                failLevel();
+                return false;
+            }
+
+            return true;
+        };
+
         const renderAnswerWorkspace = (question) => {
             if (!question.options || question.options.length === 0) {
                 return `
@@ -1850,7 +2081,7 @@
                             <span class="answer-zone-label">Kolom jawaban</span>
                             <button type="button" class="answer-clear" data-clear-answer hidden>Ganti jawaban</button>
                         </div>
-                        <div class="answer-slot" data-answer-slot>Pilih jawaban dari opsi di bawah.</div>
+                        <button type="button" class="answer-slot" data-answer-slot>Pilih jawaban dari opsi di bawah.</button>
                     </div>
 
                     <div class="answer-option-bank">
@@ -1898,9 +2129,13 @@
                     }
 
                     locked = true;
-                    recordQuestionResult(question, false, 'skipped');
-                    syncQuestionResults();
-                    showFeedback(false, 'Soal dilewati karena belum memiliki opsi jawaban.');
+                    const canContinue = registerWrongAttempt(question, 'skipped');
+
+                    if (!canContinue) {
+                        return;
+                    }
+
+                    showFeedback(false, isNoLifeQuestion(question) ? 'Belum selesai. Coba lagi dengan tenang.' : 'Soal ini akan muncul lagi nanti.');
 
                     window.setTimeout(() => {
                         locked = false;
@@ -1912,12 +2147,19 @@
             }
 
             const resetSelection = () => {
+                if (selected?.button) {
+                    selected.button.hidden = false;
+                }
+
                 selected = null;
                 slot.textContent = 'Pilih jawaban dari opsi di bawah.';
-                slot.classList.remove('is-filled');
+                slot.classList.remove('is-filled', 'is-clickable');
                 clearButton.hidden = true;
                 checkButton.disabled = true;
-                tokens.forEach((token) => token.classList.remove('is-selected', 'is-wrong'));
+                tokens.forEach((token) => {
+                    token.hidden = false;
+                    token.classList.remove('is-selected', 'is-wrong');
+                });
             };
 
             tokens.forEach((token) => {
@@ -1926,8 +2168,14 @@
                         return;
                     }
 
+                    if (selected?.button && selected.button !== token) {
+                        selected.button.hidden = false;
+                        selected.button.classList.remove('is-selected', 'is-wrong');
+                    }
+
                     tokens.forEach((item) => item.classList.remove('is-selected', 'is-wrong'));
                     token.classList.add('is-selected');
+                    token.hidden = true;
 
                     const optionText = token.querySelector('[data-option-text]')?.textContent?.trim() || token.textContent.trim();
                     selected = {
@@ -1937,11 +2185,17 @@
                     };
 
                     slot.textContent = optionText;
-                    slot.classList.add('is-filled');
+                    slot.classList.add('is-filled', 'is-clickable');
                     clearButton.hidden = false;
                     checkButton.disabled = false;
                     playAudioUrl(token.dataset.audioUrl || '');
                 });
+            });
+
+            slot.addEventListener('click', () => {
+                if (!locked && selected) {
+                    resetSelection();
+                }
             });
 
             clearButton.addEventListener('click', () => {
@@ -1956,9 +2210,13 @@
                 }
 
                 locked = true;
-                recordQuestionResult(question, false, 'skipped');
-                syncQuestionResults();
-                showFeedback(false, 'Soal dilewati. Kamu bisa lanjut dan mengulang level ini nanti.');
+                const canContinue = registerWrongAttempt(question, 'skipped');
+
+                if (!canContinue) {
+                    return;
+                }
+
+                showFeedback(false, isNoLifeQuestion(question) ? 'Belum selesai. Coba lagi dengan tenang.' : 'Soal ini akan muncul lagi nanti.');
 
                 window.setTimeout(() => {
                     locked = false;
@@ -1981,19 +2239,17 @@
                     token.disabled = true;
                 });
 
-                recordQuestionResult(question, selected.isCorrect, selected.text);
-                syncQuestionResults();
-
                 window.setTimeout(() => {
                     workspace.classList.remove('is-checking');
                     checkButton.classList.remove('is-loading');
                     checkButton.textContent = 'Periksa';
 
                     if (selected.isCorrect) {
+                        recordQuestionResult(question, true, selected.text);
+                        syncQuestionResults();
+                        clearRetryFlag(question);
+                        completeQuestion(question);
                         selected.button.classList.add('is-correct');
-                        correctCount += 1;
-                        correctCountNode.textContent = correctCount;
-                        correctInput.value = correctCount;
                         showFeedback(true, question.explanation ? `Benar. ${question.explanation}` : 'Benar. Lanjut ke soal berikutnya.');
 
                         window.setTimeout(() => {
@@ -2005,20 +2261,22 @@
                     }
 
                     selected.button.classList.add('is-wrong');
-                    showFeedback(false, question.explanation ? `Belum tepat. ${question.explanation}` : 'Belum tepat. Coba pilih jawaban lain.');
+                    const canContinue = registerWrongAttempt(question, selected.text);
+
+                    if (!canContinue) {
+                        return;
+                    }
+
+                    const message = isNoLifeQuestion(question)
+                        ? 'Belum tepat. Coba pahami lagi ceritanya.'
+                        : 'Belum tepat. Soal ini akan muncul lagi nanti.';
+
+                    showFeedback(false, message);
 
                     window.setTimeout(() => {
-                        tokens.forEach((token) => {
-                            token.disabled = false;
-                            token.classList.remove('is-selected', 'is-wrong');
-                        });
-                        skipButton.disabled = false;
-                        questionCard.classList.remove('is-wrong');
-                        feedback.className = 'quiz-feedback';
-                        feedback.textContent = '';
                         locked = false;
-                        resetSelection();
-                    }, 1600);
+                        goNext();
+                    }, 900);
                 }, 2000);
             });
         };
@@ -2107,14 +2365,16 @@
         };
 
         const updateHeader = () => {
-            const question = questions[index];
-            const progress = questions.length === 0 ? 0 : (index / questions.length) * 100;
+            const question = questionQueue[index];
+            const progress = initialQuestionTotal === 0 ? 0 : (completedQuestionIds.size / initialQuestionTotal) * 100;
 
-            currentNumber.textContent = Math.min(index + 1, questions.length);
+            currentNumber.textContent = Math.min(completedQuestionIds.size + 1, initialQuestionTotal || 0);
+            totalNumber.textContent = initialQuestionTotal;
             questionTitle.textContent = question?.instruction || 'Jawab pertanyaan berikut.';
             questionType.textContent = question?.typeLabel || 'Soal';
             correctCountNode.textContent = correctCount;
             progressBar.style.width = `${progress}%`;
+            updateLives(question);
         };
 
         const resetFeedback = () => {
@@ -2137,16 +2397,17 @@
                 questionBody.innerHTML = `
                     <div class="quiz-context-box">
                         <strong>Ringkasan</strong>
-                        <p>Kamu menjawab ${correctCount} dari ${questions.length} soal dengan benar. Durasi belajar dihitung dari waktu kamu berada di halaman level ini.</p>
+                        <p>Kamu menuntaskan ${correctCount} dari ${initialQuestionTotal} materi. Soal yang sempat salah sudah diulang sebelum level dinyatakan selesai.</p>
                     </div>
                 `;
                 questionTitle.textContent = 'Semua soal selesai';
                 questionType.textContent = 'Selesai';
-                currentNumber.textContent = questions.length;
+                currentNumber.textContent = initialQuestionTotal;
+                totalNumber.textContent = initialQuestionTotal;
                 progressBar.style.width = '100%';
                 studySecondsInput.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
                 correctInput.value = correctCount;
-                totalInput.value = questions.length;
+                totalInput.value = initialQuestionTotal;
                 syncQuestionResults();
                 finishPanel.hidden = false;
                 finishPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2164,7 +2425,7 @@
         const goNext = () => {
             index += 1;
 
-            if (index >= questions.length) {
+            if (index >= questionQueue.length) {
                 finishQuiz();
                 return;
             }
@@ -2177,14 +2438,14 @@
                 return;
             }
 
-            recordQuestionResult(questions[index], isCorrect, selectedAnswerText(wrongButton));
-            syncQuestionResults();
+            const activeQuestion = questionQueue[index];
             locked = true;
 
             if (isCorrect) {
-                correctCount += 1;
-                correctCountNode.textContent = correctCount;
-                correctInput.value = correctCount;
+                recordQuestionResult(activeQuestion, true, selectedAnswerText(wrongButton));
+                syncQuestionResults();
+                clearRetryFlag(activeQuestion);
+                completeQuestion(activeQuestion);
 
                 const message = explanation
                     ? `Benar. ${explanation}`
@@ -2200,26 +2461,26 @@
                 return;
             }
 
-            const message = explanation
-                ? `Belum tepat. ${explanation}`
-                : 'Belum tepat. Coba lagi sampai benar.';
+            const canContinue = registerWrongAttempt(activeQuestion, selectedAnswerText(wrongButton));
+
+            if (!canContinue) {
+                return;
+            }
+
+            const message = isNoLifeQuestion(activeQuestion)
+                ? 'Belum tepat. Baca atau dengarkan ulang, lalu coba lagi.'
+                : 'Belum tepat. Soal ini akan muncul lagi nanti.';
 
             showFeedback(false, message);
 
             window.setTimeout(() => {
                 locked = false;
-                questionCard.classList.remove('is-wrong');
-                feedback.className = 'quiz-feedback';
-                feedback.textContent = '';
-
-                if (wrongButton) {
-                    wrongButton.classList.remove('is-wrong');
-                    wrongButton.disabled = false;
+                if (isNoLifeQuestion(activeQuestion)) {
+                    renderQuestion();
+                    return;
                 }
 
-                questionBody.querySelectorAll('[data-answer-option]').forEach((button) => {
-                    button.disabled = false;
-                });
+                goNext();
             }, 900);
         };
 
@@ -2228,14 +2489,13 @@
                 return '<p class="quiz-prompt">Belum ada opsi jawaban untuk soal ini.</p>';
             }
 
-            const optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
             const options = question.type === 'word_match' ? question.options : shuffle(question.options);
 
             return `
                 <div class="interactive-options">
-                    ${options.map((option, optionIndex) => `
+                    ${options.map((option) => `
                         <button class="answer-option" type="button" data-answer-option data-correct="${option.isCorrect ? 'true' : 'false'}">
-                            <span><strong style="margin-right:.45rem;">${optionLabels[optionIndex] ?? optionIndex + 1}.</strong> ${escapeHtml(option.text)}</span>
+                            <span>${escapeHtml(option.text)}</span>
                             ${option.imageUrl ? `<img src="${option.imageUrl}" alt="Gambar opsi">` : ''}
                             ${option.audioUrl ? `<audio controls src="${option.audioUrl}"></audio>` : ''}
                         </button>
@@ -2256,11 +2516,8 @@
                     if (isCorrect) {
                         questionBody.querySelectorAll('[data-answer-option]').forEach((item) => {
                             item.disabled = true;
-
-                            if (item.dataset.correct === 'true') {
-                                item.classList.add('is-correct');
-                            }
                         });
+                        button.classList.add('is-correct');
                     } else {
                         button.disabled = true;
                         button.classList.add('is-wrong');
@@ -2269,6 +2526,184 @@
                     answerQuestion(isCorrect, question.explanation || '', button);
                 });
             });
+        };
+
+        const renderSentenceOrderQuestion = (question) => {
+            const configuredTokens = question.settings?.sentenceTokens || [];
+            const fallbackTokens = question.correctAnswer
+                ? String(question.correctAnswer).split(/\s+/).filter(Boolean).map((text, tokenIndex) => ({ id: tokenIndex + 1, text }))
+                : (question.options || []).map((option, tokenIndex) => ({ id: tokenIndex + 1, text: option.text }));
+
+            const tokens = configuredTokens.length > 0 ? configuredTokens : fallbackTokens;
+            const correctSentence = question.correctAnswer || tokens.map((token) => token.text).join(' ');
+
+            if (tokens.length === 0) {
+                renderStandardQuestion(question);
+                return;
+            }
+
+            const shuffledTokens = shuffle(tokens).map((token, tokenIndex) => ({
+                ...token,
+                tokenKey: `${token.id || tokenIndex}-${tokenIndex}`,
+            }));
+
+            questionBody.innerHTML = `
+                <div class="study-shell">
+                    <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
+                    ${renderLearningFocus(question)}
+                    <div class="study-question-copy">
+                        <span class="answer-zone-label">Pertanyaan</span>
+                        <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
+                    </div>
+
+                    <div class="answer-workbench" data-sentence-workbench>
+                        <div class="answer-zone">
+                            <div class="answer-zone-head">
+                                <span class="answer-zone-label">Kolom jawaban</span>
+                                <button type="button" class="answer-clear" data-clear-sentence hidden>Ulang susunan</button>
+                            </div>
+                            <div class="answer-slot sentence-answer-row" data-sentence-slot>
+                                <span data-empty-sentence>Pilih kata dari bawah.</span>
+                            </div>
+                        </div>
+
+                        <div class="answer-option-bank">
+                            ${shuffledTokens.map((token) => `
+                                <button type="button" class="answer-token" data-sentence-token data-token-key="${escapeHtml(token.tokenKey)}">
+                                    <span>${escapeHtml(token.text)}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div class="answer-action-bar">
+                            <button type="button" class="skip-question-button" data-skip-sentence>Lompati</button>
+                            <button type="button" class="check-answer-button" data-check-sentence disabled>Periksa</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            attachAudioTriggers(questionBody);
+
+            const slot = questionBody.querySelector('[data-sentence-slot]');
+            const emptyText = questionBody.querySelector('[data-empty-sentence]');
+            const clearButton = questionBody.querySelector('[data-clear-sentence]');
+            const checkButton = questionBody.querySelector('[data-check-sentence]');
+            const skipButton = questionBody.querySelector('[data-skip-sentence]');
+            const tokenButtons = Array.from(questionBody.querySelectorAll('[data-sentence-token]'));
+            const selectedTokens = [];
+
+            const syncSentenceState = () => {
+                emptyText.hidden = selectedTokens.length > 0;
+                clearButton.hidden = selectedTokens.length === 0;
+                checkButton.disabled = selectedTokens.length !== tokens.length;
+                checkButton.textContent = selectedTokens.length === tokens.length ? 'Periksa' : 'Susun semua kata';
+            };
+
+            const returnToken = (selectedToken) => {
+                const indexToRemove = selectedTokens.findIndex((item) => item.key === selectedToken.key);
+
+                if (indexToRemove >= 0) {
+                    selectedTokens.splice(indexToRemove, 1);
+                }
+
+                selectedToken.button.hidden = false;
+                selectedToken.node.remove();
+                syncSentenceState();
+            };
+
+            tokenButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    if (locked) {
+                        return;
+                    }
+
+                    const key = button.dataset.tokenKey;
+                    const text = button.textContent.trim();
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'sentence-selected-token';
+                    chip.textContent = text;
+
+                    const selectedToken = { key, text, button, node: chip };
+                    selectedTokens.push(selectedToken);
+                    button.hidden = true;
+                    slot.appendChild(chip);
+                    syncSentenceState();
+
+                    chip.addEventListener('click', () => {
+                        if (!locked) {
+                            returnToken(selectedToken);
+                        }
+                    });
+                });
+            });
+
+            clearButton.addEventListener('click', () => {
+                if (locked) {
+                    return;
+                }
+
+                [...selectedTokens].forEach(returnToken);
+            });
+
+            skipButton.addEventListener('click', () => {
+                if (locked) {
+                    return;
+                }
+
+                locked = true;
+                const canContinue = registerWrongAttempt(question, 'skipped');
+
+                if (!canContinue) {
+                    return;
+                }
+
+                showFeedback(false, 'Soal susun kalimat ini akan muncul lagi nanti.');
+                window.setTimeout(() => {
+                    locked = false;
+                    goNext();
+                }, 900);
+            });
+
+            checkButton.addEventListener('click', () => {
+                if (locked || selectedTokens.length !== tokens.length) {
+                    return;
+                }
+
+                locked = true;
+                const selectedSentence = selectedTokens.map((token) => token.text).join(' ');
+                const isCorrect = normalizeAnswer(selectedSentence) === normalizeAnswer(correctSentence);
+
+                if (isCorrect) {
+                    recordQuestionResult(question, true, selectedSentence);
+                    syncQuestionResults();
+                    clearRetryFlag(question);
+                    completeQuestion(question);
+                    showFeedback(true, question.explanation ? `Benar. ${question.explanation}` : 'Benar. Lanjut ke soal berikutnya.');
+
+                    window.setTimeout(() => {
+                        locked = false;
+                        goNext();
+                    }, 900);
+
+                    return;
+                }
+
+                const canContinue = registerWrongAttempt(question, selectedSentence);
+
+                if (!canContinue) {
+                    return;
+                }
+
+                showFeedback(false, 'Belum tepat. Soal ini akan muncul lagi nanti.');
+                window.setTimeout(() => {
+                    locked = false;
+                    goNext();
+                }, 900);
+            });
+
+            syncSentenceState();
         };
 
         const renderVideoQuestion = (question) => {
@@ -2449,9 +2884,8 @@
                 finishBox.querySelector('[data-finish-listening]').addEventListener('click', () => {
                     if (!listeningCorrectCounted) {
                         listeningCorrectCounted = true;
-                        correctCount += 1;
-                        correctCountNode.textContent = correctCount;
-                        correctInput.value = correctCount;
+                        clearRetryFlag(question);
+                        completeQuestion(question);
                         recordQuestionResult(question, true, 'listening_completed');
                         syncQuestionResults();
                     }
@@ -2743,10 +3177,18 @@
                     } else {
                         selectedLeft.classList.add('is-wrong');
                         tile.classList.add('is-wrong');
+                        locked = true;
+                        const canContinue = registerWrongAttempt(question, `${selectedLeft.textContent.trim()} -> ${tile.textContent.trim()}`);
+
+                        if (!canContinue) {
+                            return;
+                        }
+
+                        showFeedback(false, 'Belum tepat. Soal matching ini akan muncul lagi nanti.');
                         window.setTimeout(() => {
-                            selectedLeft?.classList.remove('is-wrong');
-                            tile.classList.remove('is-wrong');
-                        }, 600);
+                            locked = false;
+                            goNext();
+                        }, 900);
                     }
                 });
             });
@@ -2754,11 +3196,21 @@
 
         const renderReadingStoryQuestion = (question) => {
             const segments = question.settings?.storySegments || [];
+            const configuredStoryQuestions = question.settings?.storyQuestions || [];
 
             if (segments.length === 0) {
                 renderStandardQuestion(question);
                 return;
             }
+
+            const storyQuestions = configuredStoryQuestions.length > 0
+                ? configuredStoryQuestions
+                : [{
+                    id: 1,
+                    questionText: question.questionText,
+                    options: question.options || [],
+                    explanation: question.explanation || '',
+                }];
 
             questionBody.innerHTML = `
                 <p class="quiz-prompt">${escapeHtml(question.instruction)}</p>
@@ -2771,8 +3223,9 @@
                     <audio class="hidden-audio" data-story-audio></audio>
                 </div>
                 <div data-reading-question hidden>
-                    <h4 class="quiz-question-text">${escapeHtml(question.questionText)}</h4>
-                    ${renderOptions(question)}
+                    <span class="answer-zone-label" data-story-question-counter></span>
+                    <h4 class="quiz-question-text" data-story-question-text></h4>
+                    <div data-story-question-options></div>
                 </div>
             `;
 
@@ -2783,15 +3236,93 @@
             const startButton = questionBody.querySelector('[data-start-story]');
             const nextButton = questionBody.querySelector('[data-next-story]');
             const readingQuestion = questionBody.querySelector('[data-reading-question]');
+            const storyQuestionCounter = questionBody.querySelector('[data-story-question-counter]');
+            const storyQuestionText = questionBody.querySelector('[data-story-question-text]');
+            const storyQuestionOptions = questionBody.querySelector('[data-story-question-options]');
             let segmentIndex = 0;
+            let storyQuestionIndex = 0;
+            let storyCorrectCount = 0;
+
+            const completeReadingStory = () => {
+                clearRetryFlag(question);
+                completeQuestion(question);
+                recordQuestionResult(question, true, `reading_story_completed:${storyCorrectCount}`);
+                syncQuestionResults();
+                showFeedback(true, question.explanation ? `Reading selesai. ${question.explanation}` : 'Reading selesai. Kamu memahami cerita ini.');
+
+                window.setTimeout(() => {
+                    locked = false;
+                    goNext();
+                }, 1000);
+            };
+
+            const renderStoryQuestion = () => {
+                const activeStoryQuestion = storyQuestions[storyQuestionIndex];
+
+                if (!activeStoryQuestion) {
+                    completeReadingStory();
+                    return;
+                }
+
+                locked = false;
+                storyQuestionCounter.textContent = `Pertanyaan cerita ${storyQuestionIndex + 1} / ${storyQuestions.length}`;
+                storyQuestionText.textContent = activeStoryQuestion.questionText || question.questionText || '';
+                storyQuestionOptions.innerHTML = renderOptions({
+                    ...question,
+                    options: activeStoryQuestion.options || [],
+                });
+
+                storyQuestionOptions.querySelectorAll('[data-answer-option]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        if (locked) {
+                            return;
+                        }
+
+                        locked = true;
+                        const isCorrect = button.dataset.correct === 'true';
+                        const selectedText = selectedAnswerText(button);
+
+                        if (isCorrect) {
+                            storyCorrectCount += 1;
+                            button.classList.add('is-correct');
+                            storyQuestionOptions.querySelectorAll('[data-answer-option]').forEach((item) => {
+                                item.disabled = true;
+                            });
+                            recordQuestionResult(question, true, selectedText);
+                            syncQuestionResults();
+                            showFeedback(true, activeStoryQuestion.explanation ? `Benar. ${activeStoryQuestion.explanation}` : 'Benar. Lanjut ke pertanyaan berikutnya.');
+
+                            window.setTimeout(() => {
+                                storyQuestionIndex += 1;
+                                resetFeedback();
+                                renderStoryQuestion();
+                            }, 850);
+
+                            return;
+                        }
+
+                        button.classList.add('is-wrong');
+                        registerWrongAttempt(question, selectedText);
+                        showFeedback(false, 'Belum tepat. Baca dialognya lagi, lalu coba jawaban lain.');
+
+                        window.setTimeout(() => {
+                            locked = false;
+                            button.classList.remove('is-wrong');
+                            questionCard.classList.remove('is-wrong');
+                            feedback.className = 'quiz-feedback';
+                            feedback.textContent = '';
+                        }, 900);
+                    });
+                });
+            };
 
             const revealQuestion = () => {
                 storyCount.textContent = 'Cerita selesai';
-                storyStatus.textContent = 'Sekarang jawab pertanyaan berikut.';
+                storyStatus.textContent = 'Sekarang jawab pertanyaan pemahaman.';
                 startButton.hidden = true;
                 nextButton.hidden = true;
                 readingQuestion.hidden = false;
-                attachOptionEvents(question);
+                renderStoryQuestion();
             };
 
             const playSegment = () => {
@@ -2842,7 +3373,11 @@
             resetFeedback();
             locked = false;
             finishPanel.hidden = true;
-            const question = questions[index];
+            const question = questionQueue[index];
+
+            if (question?.isRetry) {
+                clearRetryFlag(question);
+            }
 
             updateHeader();
 
@@ -2858,6 +3393,11 @@
 
             if (question.type === 'word_match') {
                 renderWordMatchQuestion(question);
+                return;
+            }
+
+            if (question.type === 'sentence_order') {
+                renderSentenceOrderQuestion(question);
                 return;
             }
 
@@ -2877,7 +3417,7 @@
         completeForm.addEventListener('submit', () => {
             studySecondsInput.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
             correctInput.value = correctCount;
-            totalInput.value = questions.length;
+            totalInput.value = initialQuestionTotal;
             syncQuestionResults();
         });
 

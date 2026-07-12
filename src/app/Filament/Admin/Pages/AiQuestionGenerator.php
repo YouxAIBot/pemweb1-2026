@@ -54,7 +54,7 @@ class AiQuestionGenerator extends Page
     {
         $this->validate([
             'learningLevelId' => ['required', 'integer', 'exists:learning_levels,id'],
-            'questionType' => ['required', 'in:multiple_choice,word_match,listening,real_case,mixed'],
+            'questionType' => ['required', 'in:multiple_choice,word_match,sentence_order,listening,real_case,mixed'],
             'questionCount' => ['required', 'integer', 'min:1', 'max:10'],
             'targetLanguage' => ['required', 'string', 'max:80'],
             'difficulty' => ['required', 'string', 'max:40'],
@@ -204,6 +204,12 @@ class AiQuestionGenerator extends Page
         if ($type === 'word_match') {
             return [
                 'word_pairs' => $settings['word_pairs'] ?? [],
+            ];
+        }
+
+        if ($type === 'sentence_order') {
+            return [
+                'sentence_tokens' => $settings['sentence_tokens'] ?? [],
             ];
         }
 

@@ -35,6 +35,7 @@
                         <select wire:model.defer="questionType" class="fi-input block w-full rounded-lg border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                             <option value="multiple_choice">Pilihan Ganda</option>
                             <option value="word_match">Sambung Kata</option>
+                            <option value="sentence_order">Urutkan Kalimat</option>
                             <option value="listening">Listening Flow</option>
                             <option value="real_case">Soal Nyata</option>
                             <option value="mixed">Mix</option>

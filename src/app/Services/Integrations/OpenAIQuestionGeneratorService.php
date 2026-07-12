@@ -87,6 +87,7 @@ Rules:
 - For multiple_choice, real_case, and mixed: include 2-4 answer options and mark exactly one correct option where possible.
 - For listening: create a listening_flow with story blocks and question blocks. Do not include audio paths.
 - For word_match: create word_pairs in settings.
+- For sentence_order: create sentence_tokens in settings in the correct order, and set correct_answer to the full sentence.
 - Keep explanations short and useful.
 - Output must match the JSON schema.
 PROMPT;
@@ -135,6 +136,15 @@ PROMPT;
             'required' => ['left', 'right'],
         ];
 
+        $sentenceToken = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'text' => ['type' => 'string'],
+            ],
+            'required' => ['text'],
+        ];
+
         $storySegment = [
             'type' => 'object',
             'additionalProperties' => false,
@@ -175,7 +185,7 @@ PROMPT;
                         'properties' => [
                             'type' => [
                                 'type' => 'string',
-                                'enum' => ['multiple_choice', 'word_match', 'listening', 'real_case', 'mixed'],
+                                'enum' => ['multiple_choice', 'word_match', 'sentence_order', 'listening', 'real_case', 'mixed'],
                             ],
                             'instruction' => ['type' => 'string'],
                             'question_text' => ['type' => 'string'],
@@ -199,6 +209,10 @@ PROMPT;
                                         'type' => 'array',
                                         'items' => $wordPair,
                                     ],
+                                    'sentence_tokens' => [
+                                        'type' => 'array',
+                                        'items' => $sentenceToken,
+                                    ],
                                     'scenario_context' => ['type' => 'string'],
                                     'ideal_response' => ['type' => 'string'],
                                     'story_segments' => [
@@ -206,7 +220,7 @@ PROMPT;
                                         'items' => $storySegment,
                                     ],
                                 ],
-                                'required' => ['listening_flow', 'word_pairs', 'scenario_context', 'ideal_response', 'story_segments'],
+                                'required' => ['listening_flow', 'word_pairs', 'sentence_tokens', 'scenario_context', 'ideal_response', 'story_segments'],
                             ],
                         ],
                         'required' => ['type', 'instruction', 'question_text', 'correct_answer', 'explanation', 'points', 'time_limit', 'options', 'settings'],

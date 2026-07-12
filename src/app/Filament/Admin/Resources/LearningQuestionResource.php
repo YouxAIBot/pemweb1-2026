@@ -117,6 +117,8 @@ class LearningQuestionResource extends Resource
                 static::multipleChoiceSection(),
                 static::listeningSection(),
                 static::wordMatchSection(),
+                static::sentenceOrderSection(),
+                static::readingStorySection(),
                 static::realCaseSection(),
                 static::videoQuestionSection(),
                 static::mixedSection(),
@@ -147,6 +149,8 @@ class LearningQuestionResource extends Resource
             ->visible(fn (Get $get): bool => in_array($get('type'), [
                 'multiple_choice',
                 'word_match',
+                'sentence_order',
+                'reading_story',
                 'real_case',
                 'video_question',
                 'mixed',
@@ -400,6 +404,143 @@ class LearningQuestionResource extends Resource
                     ->defaultItems(3)
                     ->minItems(2)
                     ->addActionLabel('Tambah Pasangan')
+                    ->columnSpanFull(),
+            ])
+            ->columns(2);
+    }
+
+    private static function sentenceOrderSection(): Forms\Components\Section
+    {
+        return Forms\Components\Section::make('Pembuat Soal Urutkan Kalimat')
+            ->description('Gunakan bagian ini untuk membuat latihan menyusun kata atau frasa menjadi kalimat yang benar.')
+            ->visible(fn (Get $get): bool => $get('type') === 'sentence_order')
+            ->schema([
+                Forms\Components\TextInput::make('instruction')
+                    ->label('Instruksi')
+                    ->maxLength(255)
+                    ->default('Urutkan kata menjadi kalimat yang benar.'),
+
+                Forms\Components\Textarea::make('question_text')
+                    ->label('Pertanyaan / Arahan')
+                    ->required(fn (Get $get): bool => $get('type') === 'sentence_order')
+                    ->rows(3)
+                    ->columnSpanFull()
+                    ->helperText('Contoh: Susun kalimat sapaan berikut.'),
+
+                Forms\Components\Repeater::make('settings.sentence_tokens')
+                    ->label('Token Kata / Frasa')
+                    ->schema([
+                        Forms\Components\TextInput::make('text')
+                            ->label('Kata / Frasa')
+                            ->required(),
+                    ])
+                    ->defaultItems(3)
+                    ->minItems(2)
+                    ->addActionLabel('Tambah Token')
+                    ->helperText('Masukkan token dalam urutan benar. Sistem akan mengacak tampilannya untuk user.')
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('sentence_order_answer_hint')
+                    ->label('Kunci Jawaban')
+                    ->content('Isi field Jawaban Benar / Kunci Jawaban di bagian Pembahasan dengan kalimat lengkap yang benar. Jika kosong, sistem memakai urutan token di atas sebagai kunci.')
+                    ->columnSpanFull(),
+            ])
+            ->columns(2);
+    }
+
+    private static function readingStorySection(): Forms\Components\Section
+    {
+        return Forms\Components\Section::make('Pembuat Reading Story')
+            ->description('Gunakan untuk level reading/dialog panjang. User membaca atau mendengar cerita, lalu menjawab beberapa pertanyaan tanpa sistem nyawa.')
+            ->visible(fn (Get $get): bool => $get('type') === 'reading_story')
+            ->schema([
+                Forms\Components\TextInput::make('instruction')
+                    ->label('Instruksi')
+                    ->maxLength(255)
+                    ->default('Baca dialog, lalu jawab pertanyaan pemahaman.'),
+
+                Forms\Components\TextInput::make('settings.story_button_label')
+                    ->label('Label Tombol Mulai')
+                    ->maxLength(120)
+                    ->default('Mulai Reading'),
+
+                Forms\Components\Textarea::make('question_text')
+                    ->label('Judul Cerita / Tema')
+                    ->required(fn (Get $get): bool => $get('type') === 'reading_story')
+                    ->rows(3)
+                    ->columnSpanFull()
+                    ->helperText('Contoh: Dialog perkenalan di kelas.'),
+
+                Forms\Components\Repeater::make('settings.story_segments')
+                    ->label('Dialog / Paragraf Cerita')
+                    ->schema([
+                        Forms\Components\Textarea::make('text')
+                            ->label('Teks Dialog / Paragraf')
+                            ->rows(3)
+                            ->required()
+                            ->columnSpanFull(),
+
+                        Forms\Components\FileUpload::make('audio_path')
+                            ->label('Upload Audio Dialog')
+                            ->acceptedFileTypes([
+                                'audio/mpeg',
+                                'audio/wav',
+                                'audio/ogg',
+                                'audio/mp4',
+                                'audio/x-m4a',
+                            ])
+                            ->directory('learning/audio/reading/story'),
+
+                        Forms\Components\TextInput::make('audio_manual_path')
+                            ->label('Path Audio Dialog')
+                            ->placeholder('learning/audio/generated/edge-tts/dialog-1.mp3')
+                            ->helperText('Opsional jika audio dibuat dari API Tools/Edge TTS.'),
+                    ])
+                    ->columns(2)
+                    ->defaultItems(3)
+                    ->minItems(1)
+                    ->addActionLabel('Tambah Dialog / Paragraf')
+                    ->columnSpanFull(),
+
+                Forms\Components\Repeater::make('settings.story_questions')
+                    ->label('Pertanyaan Pemahaman Cerita')
+                    ->schema([
+                        Forms\Components\Textarea::make('question_text')
+                            ->label('Pertanyaan')
+                            ->rows(2)
+                            ->required()
+                            ->columnSpanFull(),
+
+                        Forms\Components\Repeater::make('options')
+                            ->label('Pilihan Jawaban')
+                            ->schema([
+                                Forms\Components\TextInput::make('text')
+                                    ->label('Teks Jawaban')
+                                    ->required(),
+
+                                Forms\Components\Toggle::make('is_correct')
+                                    ->label('Jawaban Benar')
+                                    ->default(false),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(4)
+                            ->minItems(2)
+                            ->addActionLabel('Tambah Jawaban')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Textarea::make('explanation')
+                            ->label('Pembahasan Setelah Benar')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ])
+                    ->defaultItems(2)
+                    ->minItems(1)
+                    ->addActionLabel('Tambah Pertanyaan Cerita')
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('reading_story_hint')
+                    ->label('Catatan Mode Reading')
+                    ->content('Mode ini tidak memakai nyawa. Jika user salah, jawaban benar tidak ditampilkan dan user diminta memahami cerita lagi.')
                     ->columnSpanFull(),
             ])
             ->columns(2);

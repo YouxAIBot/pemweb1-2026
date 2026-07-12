@@ -14,7 +14,9 @@ class LearningLevel extends Model
     public const TYPES = [
         'multiple_choice' => 'Pilihan Ganda',
         'word_match' => 'Sambung Kata',
+        'sentence_order' => 'Urutkan Kalimat',
         'listening' => 'Listening',
+        'reading_story' => 'Reading Story',
         'video_question' => 'Video Question',
         'real_case' => 'Soal Nyata',
         'mixed' => 'Mix',

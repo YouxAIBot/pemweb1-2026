@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             ExpandedLanguageContentSeeder::class,
             VariedLanguagePracticeSeeder::class,
             StoryLanguageQuestionSeeder::class,
+            StructuredFoundationCurriculumSeeder::class,
             PremiumSeeder::class,
         ]);
     }
