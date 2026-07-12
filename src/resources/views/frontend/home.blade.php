@@ -31,7 +31,7 @@
                     @endif
 
                     <h1 class="hero-title">
-                        {!! $renderTitle($hero->title, 'Welcome to YoLearning Students') !!}
+                        {!! $renderTitle($hero->title, 'Belajar Bahasa Bersama YoLearning') !!}
                     </h1>
 
                     @if ($hero->description)
@@ -96,7 +96,7 @@
 
                             <div class="floating-badge">
                                 <p>Live Progress</p>
-                                <p>Skor, XP, dan pembahasan dibuat siap untuk disambungkan ke database Laravel.</p>
+                                <p>Progress belajar tersimpan otomatis: skor, XP, riwayat level, dan pembahasan siap kamu cek setelah latihan.</p>
                             </div>
                         </div>
                     @endif
@@ -146,7 +146,7 @@
                     @empty
                         <div class="language-card" style="position: relative; inset: auto; transform: none; opacity: 1;">
                             <div class="language-name">Belum ada bahasa</div>
-                            <p class="language-desc">Tambahkan item bahasa dari Admin Panel → HOMEPAGE → Sections → Section 2.</p>
+                            <p class="language-desc">Bahasa belum tersedia. Silakan kembali nanti atau pilih bahasa lain yang sudah aktif.</p>
                         </div>
                     @endforelse
                 </div>

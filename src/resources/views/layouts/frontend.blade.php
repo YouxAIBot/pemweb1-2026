@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{{ $homepageSettings->meta_description ?? 'YoLearning adalah platform belajar bahasa berbasis quiz, progress, dan tantangan.' }}">
+    <meta name="description" content="{{ $homepageSettings->meta_description ?? 'YoLearning adalah platform belajar bahasa asing berbasis level, audio, quiz, progress XP, premium, dan mode kompetitif.' }}">
     <title>@yield('title', $homepageSettings->meta_title ?? 'YoLearning - Language Learning Platform')</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -1505,6 +1505,60 @@
                 text-align: center;
             }
         }
+        /* Radius refinement: keep the UI clean without overly rounded cards. */
+        .site-shell :where(
+            .nav-links,
+            .hero-card,
+            .study-window,
+            .lesson-row,
+            .floating-badge,
+            .language-card,
+            .language-card-image,
+            .arena-card,
+            .podium-card,
+            .feature-item,
+            .cta-card,
+            .auth-card,
+            .auth-info-card,
+            .auth-alert,
+            .auth-input,
+            .auth-captcha,
+            [class*="-card"],
+            [class*="-panel"],
+            [class*="-window"]
+        ) {
+            border-radius: 0.75rem !important;
+        }
+
+        .site-shell :where(
+            button,
+            .button,
+            .nav-link,
+            .language-status,
+            .feature-icon,
+            .podium-icon,
+            .auth-submit,
+            .auth-back-link,
+            .auth-link,
+            .captcha-chip,
+            [class*="-button"],
+            [class*="-badge"],
+            [class*="-chip"],
+            [class*="-status"]
+        ) {
+            border-radius: 0.65rem !important;
+        }
+
+        .site-shell :where(
+            .cursor-dot,
+            .window-dot,
+            .pulse-dot,
+            .brand-logo,
+            [class*="avatar"],
+            [class*="progress"]
+        ) {
+            border-radius: 999px !important;
+        }
     </style>
 </head>
 <body
@@ -1551,8 +1605,8 @@
         @else
             <footer class="footer section-reveal">
                 <div class="container footer-inner">
-                    <p>{{ $homepageSettings->footer_left ?? '© ' . date('Y') . ' YoLearning. Semua progres belajar tersimpan rapi.' }}</p>
-                    <p>{{ $homepageSettings->footer_right ?? 'Belajar bahasa • Quiz • Tournament' }}</p>
+                    <p>{{ $homepageSettings->footer_left ?? '(c) ' . date('Y') . ' YoLearning. Progress belajar tersimpan rapi.' }}</p>
+                    <p>{{ $homepageSettings->footer_right ?? 'Belajar bahasa | Quiz | Tournament' }}</p>
                 </div>
             </footer>
         @endif

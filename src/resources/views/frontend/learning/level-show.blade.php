@@ -1054,6 +1054,7 @@
         flex-direction: column;
         gap: 1rem;
         padding-bottom: 1.25rem;
+        overflow: visible;
     }
 
     .reading-start {
@@ -1065,15 +1066,19 @@
 
     .reading-flow {
         display: grid;
-        gap: 1.1rem;
-        padding: 0.2rem 0 5rem;
+        gap: 1.45rem;
+        padding: 0.2rem clamp(0.25rem, 2vw, 1rem) 5rem;
+        overflow: visible;
     }
 
     .reading-line {
-        width: min(76%, 760px);
+        width: min(42rem, 70%);
+        max-width: 100%;
         display: grid;
         gap: 0.32rem;
         animation: studyIn 0.28s ease both;
+        overflow-wrap: anywhere;
+        word-break: normal;
     }
 
     .reading-line.is-left {
@@ -1083,6 +1088,7 @@
     .reading-line.is-right {
         justify-self: end;
         text-align: right;
+        margin-right: clamp(0.25rem, 1.5vw, 0.75rem);
     }
 
     .reading-line-speaker {
@@ -1096,11 +1102,14 @@
     .reading-line-text {
         margin: 0;
         color: #f6f9ff;
-        font-size: clamp(1.35rem, 3vw, 2.65rem);
+        font-size: clamp(1.15rem, 2.25vw, 2.15rem);
         font-weight: 900;
-        letter-spacing: -0.045em;
-        line-height: 1.18;
+        letter-spacing: -0.025em;
+        line-height: 1.28;
         white-space: pre-line;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .reading-question-inline {
@@ -1673,8 +1682,40 @@
         }
 
         .quiz-body.is-reading-flow {
-            overflow-y: auto;
-            scrollbar-width: thin;
+            height: auto;
+            min-height: 0;
+            overflow: visible;
+            scrollbar-width: none;
+        }
+
+        .quiz-body.is-reading-flow::-webkit-scrollbar {
+            display: none;
+        }
+
+        body:has(.quiz-engine.is-reading-story-mode) .quiz-focus-mode,
+        body:has(.quiz-engine.is-reading-story-mode) .quiz-focus-mode.app-frame,
+        body:has(.quiz-engine.is-reading-story-mode) .quiz-main-panel {
+            height: auto;
+            min-height: 100dvh;
+            overflow: visible;
+        }
+
+        body:has(.quiz-engine.is-reading-story-mode) .quiz-content-area {
+            height: auto;
+            min-height: calc(100dvh - 62px);
+            overflow: visible;
+        }
+
+        .quiz-engine.is-reading-story-mode {
+            height: auto;
+            min-height: calc(100dvh - 84px);
+            grid-template-rows: auto 6px auto auto;
+        }
+
+        .quiz-engine.is-reading-story-mode .quiz-card {
+            height: auto;
+            min-height: 58vh;
+            overflow: visible;
         }
 
         .study-shell {
@@ -1924,6 +1965,11 @@
 
         .reading-line {
             width: 100%;
+            max-width: 100%;
+        }
+
+        .reading-line.is-right {
+            margin-right: 0;
         }
 
         .reading-answer-grid,
@@ -3265,6 +3311,7 @@
             `;
 
             questionBody.classList.add('is-reading-flow');
+            quizEngine.classList.add('is-reading-story-mode');
             const startPanel = questionBody.querySelector('[data-reading-start]');
             const flowWrap = questionBody.querySelector('[data-reading-flow]');
             const storyAudio = questionBody.querySelector('[data-story-audio]');
@@ -3424,6 +3471,7 @@
             resetFeedback();
             locked = false;
             questionBody.classList.remove('is-reading-flow');
+            quizEngine.classList.remove('is-reading-story-mode');
             finishPanel.hidden = true;
             const question = questionQueue[index];
 

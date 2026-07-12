@@ -33,6 +33,25 @@ class LearningQuestionResource extends Resource
         return (bool) ($user && ($user->hasRole('super_admin') || $user->email === 'admin@admin.com'));
     }
 
+    private static function audioAcceptedFileTypes(): array
+    {
+        return [
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/mpeg3',
+            'audio/x-mpeg',
+            'audio/x-mpeg-3',
+            'audio/wav',
+            'audio/x-wav',
+            'audio/ogg',
+            'audio/webm',
+            'audio/mp4',
+            'audio/m4a',
+            'audio/x-m4a',
+            'audio/aac',
+        ];
+    }
+
     public static function canViewAny(): bool
     {
         return static::allowAdmin();
@@ -165,13 +184,8 @@ class LearningQuestionResource extends Resource
 
                 Forms\Components\FileUpload::make('settings.learning_phrase_audio_path')
                     ->label('Upload Audio Teks Bahasa Asing')
-                    ->acceptedFileTypes([
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/ogg',
-                        'audio/mp4',
-                        'audio/x-m4a',
-                    ])
+                    ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                    ->maxSize(51200)
                     ->directory('learning/audio/phrases')
                     ->helperText('Opsional. Audio ini diputar saat user klik tombol dengar pada frasa.'),
 
@@ -233,13 +247,8 @@ class LearningQuestionResource extends Resource
 
                 Forms\Components\FileUpload::make('settings.question_audio_path')
                     ->label('Upload Audio')
-                    ->acceptedFileTypes([
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/ogg',
-                        'audio/mp4',
-                        'audio/x-m4a',
-                    ])
+                    ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                    ->maxSize(51200)
                     ->directory('learning/audio/listening/questions')
                     ->columnSpanFull(),
 
@@ -307,13 +316,8 @@ class LearningQuestionResource extends Resource
 
                         Forms\Components\FileUpload::make('audio_path')
                             ->label('Audio Kata')
-                            ->acceptedFileTypes([
-                                'audio/mpeg',
-                                'audio/wav',
-                                'audio/ogg',
-                                'audio/mp4',
-                                'audio/x-m4a',
-                            ])
+                            ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                            ->maxSize(51200)
                             ->directory('learning/audio/vocabulary'),
                     ])
                     ->columns(3)
@@ -415,13 +419,8 @@ class LearningQuestionResource extends Resource
 
                                 Forms\Components\FileUpload::make('audio_path')
                                     ->label('Upload Audio Dialog')
-                                    ->acceptedFileTypes([
-                                        'audio/mpeg',
-                                        'audio/wav',
-                                        'audio/ogg',
-                                        'audio/mp4',
-                                        'audio/x-m4a',
-                                    ])
+                                    ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                                    ->maxSize(51200)
                                     ->directory('learning/audio/reading/story'),
 
                                 Forms\Components\TextInput::make('audio_manual_path')
@@ -497,13 +496,8 @@ class LearningQuestionResource extends Resource
 
                 Forms\Components\FileUpload::make('audio_path')
                     ->label('Audio Opsional')
-                    ->acceptedFileTypes([
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/ogg',
-                        'audio/mp4',
-                        'audio/x-m4a',
-                    ])
+                    ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                    ->maxSize(51200)
                     ->directory('learning/audio/questions'),
 
                 Forms\Components\FileUpload::make('image_path')
@@ -537,13 +531,8 @@ class LearningQuestionResource extends Resource
 
                 Forms\Components\FileUpload::make('audio_path')
                     ->label('Audio Opsi')
-                    ->acceptedFileTypes([
-                        'audio/mpeg',
-                        'audio/wav',
-                        'audio/ogg',
-                        'audio/mp4',
-                        'audio/x-m4a',
-                    ])
+                    ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                    ->maxSize(51200)
                     ->directory('learning/audio/options'),
 
                 Forms\Components\FileUpload::make('image_path')

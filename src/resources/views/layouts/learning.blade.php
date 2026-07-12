@@ -438,6 +438,75 @@
 
         @media (max-width:1100px){.app-frame{grid-template-columns:240px minmax(0,1fr)}.right-panel{display:none}.language-grid{grid-template-columns:repeat(2,1fr)}}
         @media (max-width:760px){.app-frame{display:block;height:auto;min-height:100vh}.side-panel{position:relative;border-right:0;border-bottom:1px solid var(--border)}.main-panel{min-height:100vh}.language-grid{grid-template-columns:1fr}.onboarding-page{padding:1rem}.map-wrap{min-height:620px}.level-node{width:68px;height:68px;font-size:1.25rem}.content-area{padding:1rem}.main-topbar{height:auto;align-items:flex-start;gap:.7rem;flex-direction:column;padding:1rem}}
+
+        /* Radius refinement: shared learning pages should feel sharper and cleaner. */
+        .learning-shell :where(
+            .auth-flash,
+            .onboarding-card,
+            .language-option,
+            .ability-option,
+            .profile-tile,
+            .friend-card,
+            .menu-item,
+            .hero-learning,
+            .part-card,
+            .stat-card,
+            .mission-card,
+            .map-wrap,
+            .level-tooltip,
+            .question-card,
+            .option-chip,
+            .level-complete-form,
+            .quiz-card,
+            .quiz-top-row,
+            .answer-slot,
+            .answer-option,
+            .word-match-card,
+            .reading-answer-button,
+            .duel-card,
+            .arena-card,
+            .room-card,
+            .leaderboard-card,
+            [class*="-card"],
+            [class*="-panel"],
+            [class*="-wrap"],
+            [class*="-row"]
+        ) {
+            border-radius: 0.75rem !important;
+        }
+
+        .learning-shell :where(
+            button,
+            .logout-link,
+            .onboarding-submit,
+            .complete-level-button,
+            .part-badge,
+            .menu-icon,
+            .quiz-type-badge,
+            .skip-question-button,
+            .check-answer-button,
+            .reading-answer-button,
+            [class*="-button"],
+            [class*="-badge"],
+            [class*="-chip"],
+            [class*="-pill"]
+        ) {
+            border-radius: 0.65rem !important;
+        }
+
+        .learning-shell :where(
+            .firefly,
+            .avatar,
+            .mini-avatar,
+            .level-node,
+            .mission-progress,
+            .progress-track,
+            .progress-fill,
+            [class*="avatar"],
+            [class*="progress"]
+        ) {
+            border-radius: 999px !important;
+        }
     </style>
     @stack('styles')
 </head>

@@ -13,6 +13,7 @@ use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\VerticalAlignment;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        config([
+            'livewire.temporary_file_upload.rules' => ['file', 'max:51200'],
+            'livewire.temporary_file_upload.directory' => 'livewire-tmp',
+            'livewire.temporary_file_upload.max_upload_time' => 10,
+        ]);
     }
 
     /**
@@ -33,6 +38,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         /**
          * Development-safe admin permission override.
          *

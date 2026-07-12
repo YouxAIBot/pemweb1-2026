@@ -49,7 +49,7 @@
             <section class="hero-learning">
                 <small>Current Language</small>
                 <h2>{{ $language?->name ?? 'Belum ada bahasa' }}</h2>
-                <p>{{ $setting->dashboard_subtitle ?: 'Pilih bagian, lanjutkan progress, dan naikkan level bahasa sesuai akunmu. Semua progress tersimpan khusus untuk akun ini.' }}</p>
+                <p>{{ $setting->dashboard_subtitle ?: 'Pilih bagian belajar, lanjutkan level aktif, dan pantau XP bahasa kamu. Setiap akun menyimpan progressnya sendiri agar latihan tetap terarah.' }}</p>
             </section>
 
             <div class="parts-grid">
