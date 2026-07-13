@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'owner_portfolio_domain' => env('OWNER_PORTFOLIO_DOMAIN'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

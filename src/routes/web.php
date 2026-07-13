@@ -28,6 +28,12 @@ Livewire::setScriptRoute(function ($handle) {
 /*
 / END
 */
+if (filled(config('app.owner_portfolio_domain'))) {
+    Route::domain(config('app.owner_portfolio_domain'))->group(function () {
+        Route::view('/', 'frontend.owner')->name('owner.subdomain');
+    });
+}
+
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::view('/owner', 'frontend.owner')->name('owner');
 

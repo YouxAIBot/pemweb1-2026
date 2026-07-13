@@ -13,7 +13,7 @@
         <section class="premium-head">
             <small>YoLearning Premium</small>
             <h1>Toko Premium YoLearning.</h1>
-            <p>Status premium aktif otomatis setelah admin menyetujui pembayaran. Data akun dan progress lama tetap aman.</p>
+            <p>Pilih pembayaran otomatis lewat Midtrans atau kirim bukti transfer manual. Data akun dan progress belajar tetap aman.</p>
         </section>
 
         @if (session('learning_success'))
@@ -82,10 +82,11 @@
 
                         @if ($midtransEnabled)
                             <div class="premium-divider"><span>atau</span></div>
-                            <form method="POST" action="{{ route('learning.premium.payments.midtrans') }}" class="premium-form">
+                            <form method="POST" action="{{ route('learning.premium.payments.midtrans') }}" class="premium-form" data-midtrans-form>
                                 @csrf
                                 <input type="hidden" name="premium_package_id" value="{{ $package->id }}">
-                                <button type="submit" class="midtrans-button">Bayar Otomatis via Midtrans</button>
+                                <button type="submit" class="midtrans-button" data-midtrans-button>Bayar QRIS/DANA via Midtrans</button>
+                                <em class="premium-error" data-midtrans-message hidden></em>
                             </form>
                         @endif
                     </article>
@@ -154,7 +155,9 @@
     .premium-divider { display:flex; align-items:center; gap:.7rem; margin:1rem 0 .2rem; color:var(--muted); font-size:.78rem; font-weight:950; text-transform:uppercase; }
     .premium-divider::before, .premium-divider::after { content:''; height:1px; flex:1; background:rgba(255,255,255,.12); }
     .premium-form .midtrans-button { background:linear-gradient(135deg,#facc15,#fb7185); color:#140c05; }
+    .premium-form button:disabled { opacity:.7; cursor:not-allowed; }
     .premium-error { color:#ffb4c2; font-style:normal; }
+    .premium-error[hidden] { display:none; }
     .premium-history { position:sticky; top:1rem; }
     .premium-history-list { display:grid; gap:.7rem; margin-top:.85rem; }
     .premium-history-row { display:grid; gap:.55rem; border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:.8rem; background:rgba(255,255,255,.035); }
@@ -167,3 +170,81 @@
     @media (max-width:920px){ .premium-grid{grid-template-columns:1fr;} .premium-history{position:static;} .premium-status{flex-direction:column;} }
 </style>
 @endpush
+
+@if ($midtransEnabled && filled($midtransClientKey))
+    @push('scripts')
+        <script src="{{ $midtransSnapScriptUrl }}" data-client-key="{{ $midtransClientKey }}"></script>
+        <script>
+            (() => {
+                const forms = document.querySelectorAll('[data-midtrans-form]');
+
+                if (!forms.length) {
+                    return;
+                }
+
+                const resetButton = (button) => {
+                    button.disabled = false;
+                    button.textContent = button.dataset.originalText || 'Bayar QRIS/DANA via Midtrans';
+                };
+
+                forms.forEach((form) => {
+                    form.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+
+                        const button = form.querySelector('[data-midtrans-button]');
+                        const message = form.querySelector('[data-midtrans-message]');
+                        button.dataset.originalText = button.dataset.originalText || button.textContent;
+                        button.disabled = true;
+                        button.textContent = 'Membuka pembayaran...';
+                        message.hidden = true;
+                        message.textContent = '';
+
+                        try {
+                            const response = await fetch(form.action, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                body: new FormData(form),
+                            });
+
+                            const payload = await response.json().catch(() => ({}));
+
+                            if (!response.ok || !payload.snap_token) {
+                                throw new Error(payload.message || 'Gagal membuka pembayaran Midtrans.');
+                            }
+
+                            if (!window.snap) {
+                                throw new Error('Snap Midtrans belum siap. Coba muat ulang halaman.');
+                            }
+
+                            window.snap.pay(payload.snap_token, {
+                                onSuccess: () => {
+                                    window.location.href = "{{ route('learning.premium') }}?payment=success";
+                                },
+                                onPending: () => {
+                                    window.location.href = "{{ route('learning.premium') }}?payment=pending";
+                                },
+                                onError: () => {
+                                    message.textContent = 'Pembayaran gagal diproses. Kamu masih bisa mencoba lagi atau upload bukti manual.';
+                                    message.hidden = false;
+                                    resetButton(button);
+                                },
+                                onClose: () => {
+                                    message.textContent = 'Popup pembayaran ditutup. Klik tombol Midtrans lagi untuk melanjutkan pembayaran.';
+                                    message.hidden = false;
+                                    resetButton(button);
+                                },
+                            });
+                        } catch (error) {
+                            message.textContent = error.message || 'Terjadi kesalahan saat membuka pembayaran.';
+                            message.hidden = false;
+                            resetButton(button);
+                        }
+                    });
+                });
+            })();
+        </script>
+    @endpush
+@endif

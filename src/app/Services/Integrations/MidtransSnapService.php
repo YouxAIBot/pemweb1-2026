@@ -16,7 +16,19 @@ class MidtransSnapService
 
     public function isConfigured(): bool
     {
-        return filled($this->serverKey());
+        return filled($this->serverKey()) && filled($this->clientKey());
+    }
+
+    public function clientKey(): ?string
+    {
+        return config('services.midtrans.client_key');
+    }
+
+    public function snapScriptUrl(): string
+    {
+        return config('services.midtrans.is_production')
+            ? 'https://app.midtrans.com/snap/snap.js'
+            : 'https://app.sandbox.midtrans.com/snap/snap.js';
     }
 
     public function createTransaction(PremiumPayment $payment): array

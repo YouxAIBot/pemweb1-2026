@@ -20,6 +20,7 @@ class PremiumController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user()->load(['activePremium.package']);
+        $midtrans = app(MidtransSnapService::class);
 
         return view('frontend.learning.premium', [
             'setting' => DashboardSetting::query()->first() ?? new DashboardSetting(['brand_text' => 'YoLearning', 'brand_initial' => 'Y']),
@@ -31,7 +32,9 @@ class PremiumController extends Controller
                 ->latest()
                 ->take(12)
                 ->get(),
-            'midtransEnabled' => app(MidtransSnapService::class)->isConfigured(),
+            'midtransEnabled' => $midtrans->isConfigured(),
+            'midtransClientKey' => $midtrans->clientKey(),
+            'midtransSnapScriptUrl' => $midtrans->snapScriptUrl(),
         ]);
     }
 
@@ -82,9 +85,15 @@ class PremiumController extends Controller
             ->with('learning_success', 'Bukti pembayaran berhasil dikirim. Status premium aktif setelah admin menyetujui pembayaran.');
     }
 
-    public function midtrans(Request $request, MidtransSnapService $midtrans): RedirectResponse
+    public function midtrans(Request $request, MidtransSnapService $midtrans): JsonResponse|RedirectResponse
     {
         if (! $midtrans->isConfigured()) {
+            if ($this->wantsJson($request)) {
+                return response()->json([
+                    'message' => 'Midtrans belum dikonfigurasi. Pastikan server key dan client key sudah terpasang.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('learning.premium')
                 ->with('learning_error', 'Midtrans belum dikonfigurasi. Gunakan pembayaran manual terlebih dahulu.');
@@ -106,8 +115,8 @@ class PremiumController extends Controller
             ->latest()
             ->first();
 
-        if ($existingPending && filled($existingPending->snap_redirect_url)) {
-            return redirect()->away($existingPending->snap_redirect_url);
+        if ($existingPending && filled($existingPending->snap_token)) {
+            return $this->midtransResponse($request, $existingPending, 'Lanjutkan pembayaran yang masih menunggu.');
         }
 
         $paymentCode = $this->makePaymentCode($request->user()->id);
@@ -135,13 +144,19 @@ class PremiumController extends Controller
                 throw new RuntimeException('Midtrans tidak mengembalikan URL pembayaran.');
             }
 
-            return redirect()->away($payment->snap_redirect_url);
+            return $this->midtransResponse($request, $payment->refresh(), 'Transaksi Midtrans siap dibayar.');
         } catch (Throwable $exception) {
             $payment->update([
                 'payment_status' => PremiumPayment::STATUS_REJECTED,
                 'rejected_at' => now(),
                 'note' => 'Gagal membuat transaksi Midtrans: ' . $exception->getMessage(),
             ]);
+
+            if ($this->wantsJson($request)) {
+                return response()->json([
+                    'message' => 'Transaksi Midtrans gagal dibuat. Coba lagi atau gunakan pembayaran manual.',
+                ], 422);
+            }
 
             return redirect()
                 ->route('learning.premium')
@@ -173,5 +188,30 @@ class PremiumController extends Controller
         } while (PremiumPayment::where('payment_code', $code)->exists());
 
         return $code;
+    }
+
+    private function midtransResponse(Request $request, PremiumPayment $payment, string $message): JsonResponse|RedirectResponse
+    {
+        if ($this->wantsJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'payment_code' => $payment->payment_code,
+                'snap_token' => $payment->snap_token,
+                'redirect_url' => $payment->snap_redirect_url,
+            ]);
+        }
+
+        if (filled($payment->snap_redirect_url)) {
+            return redirect()->away($payment->snap_redirect_url);
+        }
+
+        return redirect()
+            ->route('learning.premium')
+            ->with('learning_error', 'Transaksi Midtrans belum siap. Coba lagi atau gunakan pembayaran manual.');
+    }
+
+    private function wantsJson(Request $request): bool
+    {
+        return $request->expectsJson() || $request->ajax();
     }
 }
