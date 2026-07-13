@@ -28,14 +28,7 @@ Livewire::setScriptRoute(function ($handle) {
 /*
 / END
 */
-if (filled(config('app.owner_portfolio_domain'))) {
-    Route::domain(config('app.owner_portfolio_domain'))->group(function () {
-        Route::view('/', 'frontend.owner')->name('owner.subdomain');
-    });
-}
-
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::view('/owner', 'frontend.owner')->name('owner');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');
@@ -68,7 +61,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/premium', [PremiumController::class, 'index'])->name('learning.premium');
     Route::get('/toko', [PremiumController::class, 'index'])->name('learning.store');
     Route::post('/premium/payments', [PremiumController::class, 'store'])->name('learning.premium.payments.store');
-    Route::post('/premium/payments/midtrans', [PremiumController::class, 'midtrans'])->name('learning.premium.payments.midtrans');
     Route::post('/api/ads/impressions', [AdImpressionController::class, 'store'])->name('api.ads.impressions.store');
     Route::get('/huruf', [LearningDashboardController::class, 'letters'])->name('learning.letters');
     Route::get('/games', fn () => redirect()->route('learning.games'));
