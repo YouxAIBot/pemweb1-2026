@@ -148,7 +148,7 @@ class LearningQuestionResource extends Resource
                             ->label('Jawaban Benar / Kunci Jawaban')
                             ->rows(2)
                             ->columnSpanFull()
-                            ->helperText('Boleh diisi teks jawaban benar. Untuk pilihan ganda, jawaban benar juga bisa ditentukan lewat opsi.'),
+                            ->helperText('Boleh diisi teks jawaban benar. Untuk Urutkan Kalimat dan Listening susun kata, pakai field Kalimat Benar di section khususnya agar tidak tertukar dengan Pembahasan.'),
 
                         Forms\Components\Textarea::make('explanation')
                             ->label('Pembahasan')
@@ -272,16 +272,30 @@ class LearningQuestionResource extends Resource
                         Forms\Components\TextInput::make('text')
                             ->label('Kata / Frasa')
                             ->required(),
+
+                        Forms\Components\FileUpload::make('audio_path')
+                            ->label('Upload Audio Frasa')
+                            ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                            ->maxSize(51200)
+                            ->directory('learning/audio/sentence-tokens'),
+
+                        Forms\Components\TextInput::make('audio_manual_path')
+                            ->label('Path Audio Frasa')
+                            ->placeholder('learning/audio/generated/edge-tts/token-1.mp3')
+                            ->helperText('Opsional jika audio dibuat dari API Tools/Edge TTS. Jika diisi, path ini diprioritaskan.'),
                     ])
+                    ->columns(3)
                     ->defaultItems(4)
                     ->minItems(2)
                     ->addActionLabel('Tambah Token')
                     ->helperText('Masukkan kata sesuai urutan audio. User akan menyusun token ini setelah mendengar suara.')
                     ->columnSpanFull(),
 
-                Forms\Components\Placeholder::make('listening_answer_hint')
-                    ->label('Kunci Jawaban')
-                    ->content('Isi Jawaban Benar / Kunci Jawaban dengan kalimat lengkap. Jika kosong, sistem memakai gabungan token di atas.')
+                Forms\Components\Textarea::make('settings.correct_sentence')
+                    ->label('Kalimat Benar')
+                    ->rows(2)
+                    ->required(fn (Get $get): bool => $get('type') === 'listening')
+                    ->helperText('Ini kunci jawaban utama untuk Listening susun kata. Contoh: Good morning, nice to meet you. Jika kosong, sistem memakai urutan token di atas.')
                     ->columnSpanFull(),
             ])
             ->columns(2);
@@ -353,16 +367,30 @@ class LearningQuestionResource extends Resource
                         Forms\Components\TextInput::make('text')
                             ->label('Kata / Frasa')
                             ->required(),
+
+                        Forms\Components\FileUpload::make('audio_path')
+                            ->label('Upload Audio Frasa')
+                            ->acceptedFileTypes(static::audioAcceptedFileTypes())
+                            ->maxSize(51200)
+                            ->directory('learning/audio/sentence-tokens'),
+
+                        Forms\Components\TextInput::make('audio_manual_path')
+                            ->label('Path Audio Frasa')
+                            ->placeholder('learning/audio/generated/edge-tts/token-1.mp3')
+                            ->helperText('Opsional jika audio dibuat dari API Tools/Edge TTS. Jika diisi, path ini diprioritaskan.'),
                     ])
+                    ->columns(3)
                     ->defaultItems(3)
                     ->minItems(2)
                     ->addActionLabel('Tambah Token')
                     ->helperText('Masukkan token dalam urutan benar. Sistem akan mengacak tampilannya untuk user.')
                     ->columnSpanFull(),
 
-                Forms\Components\Placeholder::make('sentence_order_answer_hint')
-                    ->label('Kunci Jawaban')
-                    ->content('Isi field Jawaban Benar / Kunci Jawaban di bagian Pembahasan dengan kalimat lengkap yang benar. Jika kosong, sistem memakai urutan token di atas sebagai kunci.')
+                Forms\Components\Textarea::make('settings.correct_sentence')
+                    ->label('Kalimat Benar')
+                    ->rows(2)
+                    ->required(fn (Get $get): bool => $get('type') === 'sentence_order')
+                    ->helperText('Ini kunci jawaban utama untuk jenis Urutkan Kalimat. Contoh: Good morning, nice to meet you. Jika kosong, sistem memakai urutan token di atas.')
                     ->columnSpanFull(),
             ])
             ->columns(2);

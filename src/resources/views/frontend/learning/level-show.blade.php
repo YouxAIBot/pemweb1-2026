@@ -176,9 +176,14 @@
         })->values();
 
         $sentenceTokens = collect($settings['sentence_tokens'] ?? [])->map(function ($token, $index) {
+            $audioPath = is_array($token)
+                ? ($token['audio_manual_path'] ?? ($token['audio_path'] ?? null))
+                : null;
+
             return [
                 'id' => $index + 1,
                 'text' => is_array($token) ? ($token['text'] ?? '') : $token,
+                'audioUrl' => learningAudioUrl($audioPath),
             ];
         })->filter(fn ($token) => filled($token['text']))->values();
 
@@ -204,6 +209,7 @@
                 'learningPhrase' => $settings['learning_phrase_text'] ?? null,
                 'learningPhraseTranslation' => $settings['learning_phrase_translation'] ?? null,
                 'learningPhraseAudioUrl' => learningAudioUrl($settings['learning_phrase_audio_manual_path'] ?? ($settings['learning_phrase_audio_path'] ?? null)) ?: learningAudioUrl($question->audio_path),
+                'correctSentence' => $settings['correct_sentence'] ?? null,
                 'storyFlow' => $storyFlow,
                 'storySegments' => $storySegments,
                 'storyQuestions' => $storyQuestions,
@@ -2765,7 +2771,7 @@
                 : (question.options || []).map((option, tokenIndex) => ({ id: tokenIndex + 1, text: option.text }));
 
             const tokens = configuredTokens.length > 0 ? configuredTokens : fallbackTokens;
-            const correctSentence = question.correctAnswer || tokens.map((token) => token.text).join(' ');
+            const correctSentence = question.settings?.correctSentence || question.correctAnswer || tokens.map((token) => token.text).join(' ');
 
             if (tokens.length === 0) {
                 renderStandardQuestion(question);
@@ -2801,6 +2807,7 @@
                             ${shuffledTokens.map((token) => `
                                 <button type="button" class="answer-token" data-sentence-token data-token-key="${escapeHtml(token.tokenKey)}">
                                     <span>${escapeHtml(token.text)}</span>
+                                    ${token.audioUrl ? `<small data-play-audio="${escapeHtml(token.audioUrl)}">Dengar</small>` : ''}
                                 </button>
                             `).join('')}
                         </div>
@@ -2990,7 +2997,7 @@
                 ? String(question.correctAnswer).split(/\s+/).filter(Boolean).map((text, tokenIndex) => ({ id: tokenIndex + 1, text }))
                 : (question.options || []).map((option, tokenIndex) => ({ id: tokenIndex + 1, text: option.text }));
             const tokens = configuredTokens.length > 0 ? configuredTokens : fallbackTokens;
-            const correctSentence = question.correctAnswer || tokens.map((token) => token.text).join(' ');
+            const correctSentence = question.settings?.correctSentence || question.correctAnswer || tokens.map((token) => token.text).join(' ');
             const audioUrl = question.settings?.questionAudioUrl || question.audioUrl || '';
 
             if (tokens.length === 0) {
@@ -3028,6 +3035,7 @@
                             ${shuffledTokens.map((token) => `
                                 <button type="button" class="answer-token" data-listening-token data-token-key="${escapeHtml(token.tokenKey)}">
                                     <span>${escapeHtml(token.text)}</span>
+                                    ${token.audioUrl ? `<small data-play-audio="${escapeHtml(token.audioUrl)}">Dengar</small>` : ''}
                                 </button>
                             `).join('')}
                         </div>
@@ -3039,6 +3047,8 @@
                     <audio class="hidden-audio" data-listening-audio></audio>
                 </div>
             `;
+
+            attachAudioTriggers(questionBody);
 
             const playButton = questionBody.querySelector('[data-play-listening]');
             const status = questionBody.querySelector('[data-listening-status]');
