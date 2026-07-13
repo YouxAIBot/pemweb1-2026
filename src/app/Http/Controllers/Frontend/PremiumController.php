@@ -146,21 +146,23 @@ class PremiumController extends Controller
 
             return $this->midtransResponse($request, $payment->refresh(), 'Transaksi Midtrans siap dibayar.');
         } catch (Throwable $exception) {
+            $errorMessage = 'Transaksi Midtrans gagal dibuat. Detail: ' . $exception->getMessage();
+
             $payment->update([
                 'payment_status' => PremiumPayment::STATUS_REJECTED,
                 'rejected_at' => now(),
-                'note' => 'Gagal membuat transaksi Midtrans: ' . $exception->getMessage(),
+                'note' => $errorMessage,
             ]);
 
             if ($this->wantsJson($request)) {
                 return response()->json([
-                    'message' => 'Transaksi Midtrans gagal dibuat. Coba lagi atau gunakan pembayaran manual.',
+                    'message' => $errorMessage,
                 ], 422);
             }
 
             return redirect()
                 ->route('learning.premium')
-                ->with('learning_error', 'Transaksi Midtrans gagal dibuat. Coba lagi atau gunakan pembayaran manual.');
+                ->with('learning_error', $errorMessage);
         }
     }
 
