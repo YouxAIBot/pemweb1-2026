@@ -1559,6 +1559,7 @@
         ) {
             border-radius: 999px !important;
         }
+        @stack('styles')
     </style>
 </head>
 <body

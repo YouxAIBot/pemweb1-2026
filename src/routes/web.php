@@ -29,6 +29,7 @@ Livewire::setScriptRoute(function ($handle) {
 / END
 */
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::view('/owner', 'frontend.owner')->name('owner');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');

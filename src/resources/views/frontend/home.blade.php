@@ -251,4 +251,21 @@
             </div>
         </section>
     @endif
+
+    <section class="section cta-section section-reveal" id="owner">
+        <div class="container">
+            <div class="cta-card">
+                <p class="section-kicker">Owner Portfolio</p>
+                <h2 class="section-title">Kenali pembuat YoLearning.</h2>
+                <p class="section-copy" style="margin-left: auto; margin-right: auto;">
+                    Lihat profil, skill, dan project dari owner yang mengembangkan YoLearning sebagai platform belajar bahasa interaktif berbasis level, audio, progress, premium, dan mode kompetitif.
+                </p>
+
+                <div class="hero-actions" style="justify-content: center;">
+                    <a href="{{ route('owner') }}" class="button button-primary">Buka Portofolio Owner</a>
+                    <a href="#home" class="button button-ghost">Kembali ke Atas</a>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection
