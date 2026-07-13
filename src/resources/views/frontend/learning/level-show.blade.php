@@ -1436,6 +1436,15 @@
         font-weight: 900;
     }
 
+    .match-tile small {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--accent);
+        font-size: 0.72rem;
+        letter-spacing: 0;
+        opacity: 0.86;
+    }
+
     .match-tile:hover:not(:disabled),
     .match-tile.is-selected {
         border-color: rgba(102, 232, 247, 0.34);
@@ -2833,8 +2842,8 @@
             const syncSentenceState = () => {
                 emptyText.hidden = selectedTokens.length > 0;
                 clearButton.hidden = selectedTokens.length === 0;
-                checkButton.disabled = selectedTokens.length !== tokens.length;
-                checkButton.textContent = selectedTokens.length === tokens.length ? 'Periksa' : 'Susun semua kata';
+                checkButton.disabled = selectedTokens.length === 0;
+                checkButton.textContent = 'Periksa';
             };
 
             const returnToken = (selectedToken) => {
@@ -2856,7 +2865,7 @@
                     }
 
                     const key = button.dataset.tokenKey;
-                    const text = button.textContent.trim();
+                    const text = button.querySelector('span')?.textContent.trim() || button.textContent.trim();
                     const chip = document.createElement('button');
                     chip.type = 'button';
                     chip.className = 'sentence-selected-token';
@@ -2904,7 +2913,7 @@
             });
 
             checkButton.addEventListener('click', () => {
-                if (locked || selectedTokens.length !== tokens.length) {
+                if (locked || selectedTokens.length === 0) {
                     return;
                 }
 
@@ -3198,9 +3207,9 @@
                     <div class="word-match-grid">
                         <div class="match-column">
                             ${pairs.map((pair) => `
-                                <button type="button" class="match-tile" data-left-id="${pair.id}">
-                                    ${escapeHtml(pair.left)}
-                                    ${pair.audioUrl ? `<audio controls src="${pair.audioUrl}" style="width:100%;height:30px;margin-top:.45rem"></audio>` : ''}
+                                <button type="button" class="match-tile" data-left-id="${pair.id}" data-audio-url="${escapeHtml(pair.audioUrl || '')}">
+                                    <span>${escapeHtml(pair.left)}</span>
+                                    ${pair.audioUrl ? '<small>Dengar audio</small>' : ''}
                                 </button>
                             `).join('')}
                         </div>
@@ -3230,6 +3239,7 @@
                         return;
                     }
 
+                    playAudioUrl(tile.dataset.audioUrl || '');
                     clearWrong();
                     questionBody.querySelectorAll('[data-left-id]').forEach((item) => item.classList.remove('is-selected'));
                     selectedLeft = tile;
