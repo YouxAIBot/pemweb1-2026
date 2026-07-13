@@ -55,6 +55,28 @@
                             @endforeach
                         </ul>
 
+                        <div class="premium-payment-note premium-midtrans-note">
+                            <b>Pembayaran Otomatis</b>
+                            <span>Bayar langsung lewat Midtrans. Popup pembayaran akan menampilkan QRIS, e-wallet, virtual account, atau metode lain yang aktif di dashboard Midtrans.</span>
+                            <em>Jika pembayaran sukses, status premium akan aktif otomatis setelah notifikasi Midtrans diterima sistem.</em>
+                        </div>
+
+                        @if ($midtransEnabled)
+                            <form method="POST" action="{{ route('learning.premium.payments.midtrans') }}" class="premium-form" data-midtrans-form>
+                                @csrf
+                                <input type="hidden" name="premium_package_id" value="{{ $package->id }}">
+                                <button type="submit" class="midtrans-button" data-midtrans-button>Bayar Sekarang via Midtrans</button>
+                                <em class="premium-error" data-midtrans-message hidden></em>
+                            </form>
+                        @else
+                            <div class="premium-midtrans-disabled">
+                                <b>Midtrans belum aktif di aplikasi.</b>
+                                <span>Pastikan `MIDTRANS_SERVER_KEY` dan `MIDTRANS_CLIENT_KEY` sudah diisi di VPS, lalu jalankan ulang cache config Laravel.</span>
+                            </div>
+                        @endif
+
+                        <div class="premium-divider"><span>atau upload manual</span></div>
+
                         <form method="POST" action="{{ route('learning.premium.payments.store') }}" enctype="multipart/form-data" class="premium-form">
                             @csrf
                             <input type="hidden" name="premium_package_id" value="{{ $package->id }}">
@@ -79,16 +101,6 @@
 
                             <button type="submit">Kirim Bukti Pembayaran</button>
                         </form>
-
-                        @if ($midtransEnabled)
-                            <div class="premium-divider"><span>atau</span></div>
-                            <form method="POST" action="{{ route('learning.premium.payments.midtrans') }}" class="premium-form" data-midtrans-form>
-                                @csrf
-                                <input type="hidden" name="premium_package_id" value="{{ $package->id }}">
-                                <button type="submit" class="midtrans-button" data-midtrans-button>Bayar QRIS/DANA via Midtrans</button>
-                                <em class="premium-error" data-midtrans-message hidden></em>
-                            </form>
-                        @endif
                     </article>
                 @empty
                     <article class="premium-package">
@@ -147,6 +159,9 @@
     .premium-package ul { display:grid; gap:.55rem; margin:.9rem 0; padding-left:1.1rem; color:#dce7f8; font-weight:800; }
     .premium-form { display:grid; gap:.8rem; margin-top:1rem; }
     .premium-payment-note { display:grid; gap:.25rem; border:1px solid rgba(102,232,247,.18); border-radius:16px; background:rgba(102,232,247,.06); padding:.85rem; }
+    .premium-midtrans-note { margin-top:1rem; border-color:rgba(250,204,21,.24); background:rgba(250,204,21,.07); }
+    .premium-midtrans-disabled { display:grid; gap:.25rem; border:1px solid rgba(255,107,138,.28); border-radius:12px; background:rgba(255,107,138,.08); color:#ffe7ec; padding:.85rem; margin-top:.8rem; font-weight:850; }
+    .premium-midtrans-disabled span { color:var(--muted); line-height:1.5; }
     .premium-payment-note b { color:#eaffff; }
     .premium-payment-note span, .premium-payment-note em { color:var(--muted); font-style:normal; font-weight:800; line-height:1.45; }
     .premium-form label { display:grid; gap:.4rem; color:var(--muted); font-weight:900; font-size:.86rem; }
